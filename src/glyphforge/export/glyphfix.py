@@ -46,6 +46,7 @@ def export_glyphfix(store_dir: Path, out_dir: Path) -> dict:
     if (out_dir / "trainset.jsonl").exists():
         raise FileExistsError(f"{out_dir / 'trainset.jsonl'} already exists")
     rows = [_row(s) for s in samples]
+    out_dir.mkdir(parents=True, exist_ok=True)
     for s in samples:
         dest = out_dir / s["image"]
         dest.parent.mkdir(parents=True, exist_ok=True)
