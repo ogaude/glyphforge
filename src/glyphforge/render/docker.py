@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from glyphforge import resources
-from glyphforge.canon.safety import wrap
+from glyphforge.canon.safety import render_body
 
 # Pinned by digest, not the floating :latest tag: a silent image update would change rendering mid-project and
 # make cached bitmaps incomparable to new ones. The digest is part of the cache key, so bumping it re-renders.
@@ -74,7 +74,7 @@ def docker_diagnosis() -> str:
 def _batch_source(latexes: Sequence[str], *, wrapper: str = "display", preamble: str | None = None) -> str:
     parts = [PREAMBLE if preamble is None else preamble, "\\begin{document}\n"]
     for latex in latexes:
-        body = wrap(latex) if wrapper == "display" else latex.strip()
+        body = render_body(latex, wrapper=wrapper)
         parts.append(body + "\n\\newpage\n")
     parts.append("\\end{document}\n")
     return "".join(parts)

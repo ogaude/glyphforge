@@ -21,9 +21,9 @@ def test_env_cache_key_differs():
     assert cache.cache_key(env, wrapper="env") != cache.cache_key(env)
 
 
-def test_versions_unchanged():
+def test_versions():
     assert safety.WRAP_VERSION == "1"
-    assert safety.FILTER_VERSION == "2"
+    assert safety.FILTER_VERSION == "3"
 
 
 def test_batch_source_env_is_verbatim():
