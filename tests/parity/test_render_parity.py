@@ -19,7 +19,7 @@ def test_render_parity_cache_layout_and_hit(tmp_path, monkeypatch):
     mismatches = []
     for row, res in zip(ROWS, results, strict=True):
         got = (res.status, list(res.shape) if res.shape else None, res.bitmap_sha256)
-        if got != (row["status"], row["shape"], row["bitmap_sha256"]) or (row["status"] == "compile_failed" and res.note != row["note"]):
+        if got != (row["status"], row["shape"], row["bitmap_sha256"]) or (row["status"] == "compile-failed" and res.note != row["note"]):
             mismatches.append((row["latex"], got, (row["status"], row["shape"], row["bitmap_sha256"]), res.note, row["note"]))
     assert not mismatches, mismatches
     for row in ROWS:
