@@ -1,0 +1,292 @@
+{
+  "$defs": {
+    "ExportSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "formats": {
+          "default": [
+            "glyphfix"
+          ],
+          "items": {
+            "const": "glyphfix",
+            "type": "string"
+          },
+          "title": "Formats",
+          "type": "array"
+        }
+      },
+      "title": "ExportSpec",
+      "type": "object"
+    },
+    "Formula": {
+      "additionalProperties": false,
+      "description": "One source formula with its licence and, for CC BY material, the attribution fields.",
+      "properties": {
+        "authors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "env": {
+          "default": "equation*",
+          "title": "Env",
+          "type": "string"
+        },
+        "latex": {
+          "title": "Latex",
+          "type": "string"
+        },
+        "licence": {
+          "title": "Licence",
+          "type": "string"
+        },
+        "paper_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paper Id"
+        },
+        "paper_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paper Version"
+        }
+      },
+      "required": [
+        "latex",
+        "licence"
+      ],
+      "title": "Formula",
+      "type": "object"
+    },
+    "QCSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "ambiguity": {
+          "default": "drop",
+          "enum": [
+            "drop",
+            "flag"
+          ],
+          "title": "Ambiguity",
+          "type": "string"
+        }
+      },
+      "title": "QCSpec",
+      "type": "object"
+    },
+    "SourceSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "formulas": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Formula"
+          },
+          "title": "Formulas",
+          "type": "array"
+        },
+        "kind": {
+          "default": "builtin",
+          "enum": [
+            "builtin",
+            "inline",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "licence": {
+          "anyOf": [
+            {
+              "enum": [
+                "CC0-1.0",
+                "CC-BY-3.0",
+                "CC-BY-4.0"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Licence"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        }
+      },
+      "title": "SourceSpec",
+      "type": "object"
+    },
+    "StyleSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "font": {
+          "enum": [
+            "cm",
+            "lmodern",
+            "mathpazo",
+            "newtx",
+            "libertine",
+            "stix2"
+          ],
+          "title": "Font",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "packages": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9-]*$",
+            "type": "string"
+          },
+          "title": "Packages",
+          "type": "array"
+        },
+        "size": {
+          "maximum": 12,
+          "minimum": 8,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "font",
+        "size"
+      ],
+      "title": "StyleSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "classes": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Classes"
+    },
+    "entry_points": {
+      "default": false,
+      "title": "Entry Points",
+      "type": "boolean"
+    },
+    "export": {
+      "$ref": "#/$defs/ExportSpec",
+      "default": {
+        "formats": [
+          "glyphfix"
+        ]
+      }
+    },
+    "plugins": {
+      "default": [],
+      "items": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$",
+        "type": "string"
+      },
+      "title": "Plugins",
+      "type": "array"
+    },
+    "qc": {
+      "$ref": "#/$defs/QCSpec",
+      "default": {
+        "ambiguity": "drop"
+      }
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "seed": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/SourceSpec",
+      "default": {
+        "formulas": [],
+        "kind": "builtin",
+        "licence": null,
+        "path": null
+      }
+    },
+    "styles": {
+      "default": [
+        {
+          "font": "cm",
+          "name": "default",
+          "packages": [],
+          "size": 12
+        },
+        {
+          "font": "cm",
+          "name": "cmbright",
+          "packages": [
+            "cmbright"
+          ],
+          "size": 12
+        },
+        {
+          "font": "libertine",
+          "name": "libertine",
+          "packages": [],
+          "size": 12
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/StyleSpec"
+      },
+      "minItems": 1,
+      "title": "Styles",
+      "type": "array"
+    }
+  },
+  "title": "Recipe",
+  "type": "object"
+}
