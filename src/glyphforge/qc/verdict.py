@@ -38,12 +38,11 @@ def verdict(gt: RenderResult, alts: Sequence[RenderResult], cache: Path | None, 
     if gt.status != "rendered":
         return Verdict(False, gt.status, (), n_bad)
     rendered = [a for a in alts if a.status == "rendered"]
-    ambiguous = any(a.bitmap_sha256 == gt.bitmap_sha256 for a in rendered)
+    same = [a for a in rendered if a.bitmap_sha256 == gt.bitmap_sha256]
+    ambiguous = bool(same)
     flags: set[str] = set()
     gt_img = _policy_image(gt, cache) if rendered else None
-    for a in rendered:
-        if a.bitmap_sha256 == gt.bitmap_sha256:
-            continue
+    for a in (a for a in rendered if a not in same):
         if compare(gt, a, cache)[1]:
             flags.add("near-identical")
         if _policy_image(a, cache) == gt_img:
