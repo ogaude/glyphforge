@@ -1,0 +1,43 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from glyphforge.render import IMAGE_DIGEST, PREAMBLE_SHA256, Style, docker, render_many
+
+pytestmark = [pytest.mark.docker, pytest.mark.skipif(not docker.docker_available(), reason="pinned texlive image not available")]
+
+_ROWS = [json.loads(line) for line in (Path(__file__).parent.parent / "fixtures" / "render_golden.jsonl").read_text().splitlines() if line.strip()]
+META, ROWS = _ROWS[0]["_meta"], _ROWS[1:]
+
+
+def test_render_parity_cache_layout_and_hit(tmp_path, monkeypatch):
+    assert META["image_digest"] == IMAGE_DIGEST
+    assert META["preamble_sha256"] == PREAMBLE_SHA256
+    latex = [r["latex"] for r in ROWS]
+    results = render_many(latex, cache=tmp_path, batch_size=100)
+    mismatches = []
+    for row, res in zip(ROWS, results, strict=True):
+        got = (res.status, list(res.shape) if res.shape else None, res.bitmap_sha256)
+        if got != (row["status"], row["shape"], row["bitmap_sha256"]) or (row["status"] == "compile_failed" and res.note != row["note"]):
+            mismatches.append((row["latex"], got, (row["status"], row["shape"], row["bitmap_sha256"]), res.note, row["note"]))
+    assert not mismatches, mismatches
+    for row in ROWS:
+        if row["status"] == "rendered":
+            k = row["cache_key"]
+            assert (tmp_path / "render" / k[:2] / f"{k}.json").exists()
+            assert (tmp_path / "render" / k[:2] / f"{k}.npy").exists()
+
+    def boom(*a, **k):
+        raise AssertionError("container started on a cache hit")
+
+    monkeypatch.setattr(docker.subprocess, "run", boom)
+    assert render_many(latex, cache=tmp_path, batch_size=100) == results
+
+
+def test_mixed_styles_in_one_call(tmp_path):
+    golden = next(r for r in ROWS if r["latex"] == "x+1")
+    default, newtx = render_many(["x+1", "x+1"], style=[Style(), Style(font="newtx")], cache=tmp_path)
+    assert default.status == newtx.status == "rendered"
+    assert default.bitmap_sha256 == golden["bitmap_sha256"]
+    assert newtx.bitmap_sha256 != default.bitmap_sha256
