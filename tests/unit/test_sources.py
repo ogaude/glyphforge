@@ -5,8 +5,9 @@ import os
 
 import pytest
 
+from glyphforge.errors import builtin_registry, check_error_class
 from glyphforge.recipe.schema import SourceSpec
-from glyphforge.sources import Formula, ListSource, Source, load_source
+from glyphforge.sources import Formula, ListSource, Source, builtin_seed, load_source
 
 
 def _f(latex: str) -> Formula:
@@ -94,3 +95,48 @@ def test_file_source_duplicate_latex(tmp_path):
     _write(tmp_path / "f.jsonl", {"latex": "a+b"}, {"latex": "a+b"})
     with pytest.raises(ValueError, match="duplicate"):
         load_source(_file_spec(), tmp_path)
+
+
+@pytest.fixture(scope="module")
+def registry():
+    return builtin_registry()
+
+
+@pytest.fixture(scope="module")
+def seed_latex():
+    return [f.latex for f in builtin_seed()]
+
+
+def test_seed_set_size_and_licence():
+    seed = builtin_seed()
+    assert 50 <= len(seed) <= 100
+    assert {f.licence for f in seed} == {"CC0-1.0"}
+    assert len({f.latex for f in seed}) == len(seed)
+    assert max(len(f.latex) for f in seed) <= 200
+
+
+def test_seed_set_is_the_builtin_source(tmp_path):
+    assert load_source(SourceSpec(), tmp_path).formulas() == builtin_seed()
+
+
+def test_seed_set_display_envs_and_probes(seed_latex):
+    display = [f for f in builtin_seed() if f.env != "equation*" and ("&" in f.latex or "\\\\" in f.latex)]
+    assert len(display) >= 6
+    assert {"a_{I}+b", "a_{l}+b", "a_{1}+b", r"\boldsymbol{x}+y", r"\bm{x}+y"} <= set(seed_latex)
+
+
+def test_seed_set_covers_every_builtin_class(registry, seed_latex):
+    assert [n for n in registry.names() if not any(registry.get(n).sites(x) for x in seed_latex)] == []
+
+
+def test_seed_set_site_budget(registry, seed_latex):
+    totals: dict[str, int] = {}
+    for n in registry.names():
+        cls = registry.get(n)
+        totals[cls.family] = totals.get(cls.family, 0) + sum(len(cls.sites(x)) for x in seed_latex)
+    assert sum(totals.values()) <= 400, totals
+
+
+@pytest.mark.parametrize("name", builtin_registry().names())
+def test_seed_set_passes_class_contract(registry, seed_latex, name):
+    assert check_error_class(registry.get(name), seed_latex) == []
