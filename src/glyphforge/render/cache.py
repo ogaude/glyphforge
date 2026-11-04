@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -85,15 +87,22 @@ def _cache_get(cache: Path | None, key: str) -> RenderResult | None:
 def _cache_put(cache: Path | None, res: RenderResult, bitmap: np.ndarray | None = None) -> None:
     jp = _entry(cache, res.key, ".json")
     jp.parent.mkdir(parents=True, exist_ok=True)
-    if bitmap is not None:
-        tmp = jp.with_suffix(".npy.tmp")
-        with tmp.open("wb") as fh:
-            np.save(fh, bitmap)
-        os.replace(tmp, _entry(cache, res.key, ".npy"))
     payload = {"status": res.status, "shape": list(res.shape) if res.shape else None, "bitmap_sha256": res.bitmap_sha256, "note": res.note}
-    tmpj = jp.with_suffix(".json.tmp")
-    tmpj.write_text(json.dumps(payload), encoding="utf-8")
-    os.replace(tmpj, jp)  # json last: a partial write is a cache miss
+    for final, mode, enc, write in (
+        (_entry(cache, res.key, ".npy"), "wb", None, None if bitmap is None else lambda fh: np.save(fh, bitmap)),
+        (jp, "w", "utf-8", lambda fh: fh.write(json.dumps(payload))),  # json last: a partial write is a cache miss
+    ):
+        if write is None:
+            continue
+        fd, tmp = tempfile.mkstemp(dir=jp.parent, prefix=f".{res.key}.", suffix=f"{final.suffix}.tmp")
+        try:
+            with os.fdopen(fd, mode, encoding=enc) as fh:
+                write(fh)
+            os.replace(tmp, final)
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(tmp)
+            raise
 
 
 def load_bitmap(result: RenderResult, cache: Path | None = None) -> np.ndarray | None:

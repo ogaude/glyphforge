@@ -45,8 +45,29 @@ def run_checks(*, pull: bool = False, cache: Path | None = None) -> list[Check]:
     checks.append(Check("image", have, docker.IMAGE if have else f"run `glyphforge doctor --pull` or `docker pull {docker.IMAGE}`"))
 
     root = cache or paths.cache_dir()
+    g = resources.GIB
+    try:
+        mem = resources.mem_available_bytes()
+        cap = resources.docker_parallel_cap()
+        memory = Check(
+            "memory",
+            cap >= 1,
+            f"MemAvailable {mem / g:.1f} GiB, floor {resources.RAM_FLOOR_BYTES / g:.1f} GiB, "
+            f"docker memory {resources.DOCKER_MEMORY_GB} GiB, containers that fit now: {cap}",
+        )
+    except (OSError, resources.GuardError) as e:
+        mem, cap, memory = 0, 0, Check("memory", False, f"cannot measure MemAvailable: {e}")
     if not have:
         checks.append(Check("probe", False, "skipped: docker or image unavailable"))
+    elif cap < 1:
+        checks.append(
+            Check(
+                "probe",
+                False,
+                f"skipped: memory below floor + one {resources.DOCKER_MEMORY_GB} GiB container "
+                f"(MemAvailable {mem / g:.1f} GiB); lower GLYPHFORGE_DOCKER_MEMORY_GB",
+            )
+        )
     else:
         doc = docker.PREAMBLE + "".join(
             f"\\IfFileExists{{{f}}}{{\\typeout{{GF:ok:{f}}}}}{{\\typeout{{GF:missing:{f}}}}}\n" for f in PROBE_FILES
@@ -70,15 +91,7 @@ def run_checks(*, pull: bool = False, cache: Path | None = None) -> list[Check]:
                 hard = [m for m in missing if m not in OPTIONAL]
                 checks.append(Check("probe", not hard, ("missing: " + ", ".join(missing)) if missing else f"{len(PROBE_FILES) + 1} items present"))
 
-    g = resources.GIB
-    checks.append(
-        Check(
-            "memory",
-            True,
-            f"MemAvailable {resources.mem_available_bytes() / g:.1f} GiB, floor {resources.RAM_FLOOR_BYTES / g:.1f} GiB, "
-            f"docker memory {resources.DOCKER_MEMORY_GB} GiB, containers that fit now: {resources.docker_parallel_cap()}",
-        )
-    )
+    checks.append(memory)
 
     try:
         with tempfile.NamedTemporaryFile(dir=root):
