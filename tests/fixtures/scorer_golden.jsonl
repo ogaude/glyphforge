@@ -1,0 +1,118 @@
+{"_meta": {"canon_rules_version": "2", "filter_version": "2", "generator": "scripts/regen_golden.py", "glyphfix_math_commit": "70ba3da600b9124cfeb198df06be199be20787c7", "image_digest": "sha256:0f4884ca7d287f47ab466d2dd405d4c901c576585363f628863a7ca7eea21301", "normalize_rules_version": "3", "preamble_sha256": "65f94732462b53dee104e2f8d1828eea267d3e9abfbbdd082f4796426bb00717", "render_dpi": 300, "seed": 20261104, "wrap_version": "1"}}
+{"canonical_gt": "f '", "canonical_pred": "f l", "equivalent": false, "gt": "f'", "pred": "fl", "source": "scorer_golden"}
+{"canonical_gt": "f ' ( x )", "canonical_pred": "f l ( x )", "equivalent": false, "gt": "f'(x)", "pred": "fl(x)", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f ^ l", "equivalent": false, "gt": "f^{\\prime}", "pred": "f^{l}", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f \\ell", "equivalent": false, "gt": "f'", "pred": "f\\ell", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f", "equivalent": false, "gt": "f'", "pred": "f", "source": "scorer_golden"}
+{"canonical_gt": "f ' '", "canonical_pred": "f '", "equivalent": false, "gt": "f''", "pred": "f'", "source": "scorer_golden"}
+{"canonical_gt": "u ' _ n", "canonical_pred": "u _ n", "equivalent": false, "gt": "u^{\\prime}_n", "pred": "u_n", "source": "scorer_golden"}
+{"canonical_gt": "\\upsilon", "canonical_pred": "v", "equivalent": false, "gt": "\\upsilon", "pred": "v", "source": "scorer_golden"}
+{"canonical_gt": "\\nu", "canonical_pred": "v", "equivalent": false, "gt": "\\nu", "pred": "v", "source": "scorer_golden"}
+{"canonical_gt": "\\alpha", "canonical_pred": "a", "equivalent": false, "gt": "\\alpha", "pred": "a", "source": "scorer_golden"}
+{"canonical_gt": "\\epsilon", "canonical_pred": "e", "equivalent": false, "gt": "\\epsilon", "pred": "e", "source": "scorer_golden"}
+{"canonical_gt": "\\mathbf x", "canonical_pred": "x", "equivalent": false, "gt": "\\mathbf{x}", "pred": "x", "source": "scorer_golden"}
+{"canonical_gt": "\\boldsymbol x", "canonical_pred": "x", "equivalent": false, "gt": "\\boldsymbol{x}", "pred": "x", "source": "scorer_golden"}
+{"canonical_gt": "\\bm x", "canonical_pred": "x", "equivalent": false, "gt": "\\bm{x}", "pred": "x", "source": "scorer_golden"}
+{"canonical_gt": "\\bar x", "canonical_pred": "x", "equivalent": false, "gt": "\\bar{x}", "pred": "x", "source": "scorer_golden"}
+{"canonical_gt": "\\underline x", "canonical_pred": "x", "equivalent": false, "gt": "\\underline{x}", "pred": "x", "source": "scorer_golden"}
+{"canonical_gt": "\\hat x", "canonical_pred": "x", "equivalent": false, "gt": "\\hat{x}", "pred": "x", "source": "scorer_golden"}
+{"canonical_gt": "\\mathbf x", "canonical_pred": "\\mathrm x", "equivalent": false, "gt": "\\mathbf{x}", "pred": "\\mathrm{x}", "source": "scorer_golden"}
+{"canonical_gt": "\\mathbf x", "canonical_pred": "\\bm x", "equivalent": false, "gt": "\\mathbf{x}", "pred": "\\bm{x}", "source": "scorer_golden"}
+{"canonical_gt": "\\bar x", "canonical_pred": "\\overline x", "equivalent": false, "gt": "\\bar{x}", "pred": "\\overline{x}", "source": "scorer_golden"}
+{"canonical_gt": "\\mathrm d x", "canonical_pred": "d x", "equivalent": false, "gt": "\\mathrm{d}x", "pred": "dx", "source": "scorer_golden"}
+{"canonical_gt": "I", "canonical_pred": "1", "equivalent": false, "gt": "I", "pred": "1", "source": "scorer_golden"}
+{"canonical_gt": "x _ I", "canonical_pred": "x _ 1", "equivalent": false, "gt": "x_I", "pred": "x_1", "source": "scorer_golden"}
+{"canonical_gt": "A ^ { - 1 }", "canonical_pred": "A ^ { - I }", "equivalent": false, "gt": "A^{-1}", "pred": "A^{-I}", "source": "scorer_golden"}
+{"canonical_gt": "\\ell", "canonical_pred": "l", "equivalent": false, "gt": "\\ell", "pred": "l", "source": "scorer_golden"}
+{"canonical_gt": "\\varepsilon", "canonical_pred": "\\epsilon", "equivalent": false, "gt": "\\varepsilon", "pred": "\\epsilon", "source": "scorer_golden"}
+{"canonical_gt": "\\phi", "canonical_pred": "\\varphi", "equivalent": false, "gt": "\\phi", "pred": "\\varphi", "source": "scorer_golden"}
+{"canonical_gt": "\\left ( x \\right )", "canonical_pred": "( x )", "equivalent": false, "gt": "\\left( x \\right)", "pred": "( x )", "source": "scorer_golden"}
+{"canonical_gt": "( x )", "canonical_pred": "\\left ( x \\right )", "equivalent": false, "gt": "\\bigl( x \\bigr)", "pred": "\\left( x \\right)", "source": "scorer_golden"}
+{"canonical_gt": "x _ { a b }", "canonical_pred": "x _ a b", "equivalent": false, "gt": "x_{ab}", "pred": "x_a b", "source": "scorer_golden"}
+{"canonical_gt": "\\frac a b c", "canonical_pred": "\\frac a { b c }", "equivalent": false, "gt": "\\frac{a}{b}c", "pred": "\\frac{a}{bc}", "source": "scorer_golden"}
+{"canonical_gt": "e ^ { x + 1 }", "canonical_pred": "e ^ x + 1", "equivalent": false, "gt": "e^{x+1}", "pred": "e^x+1", "source": "scorer_golden"}
+{"canonical_gt": "\\sqrt { a b }", "canonical_pred": "\\sqrt a b", "equivalent": false, "gt": "\\sqrt{ab}", "pred": "\\sqrt{a}b", "source": "scorer_golden"}
+{"canonical_gt": "\\begin { p m a t r i x } a & b \\end { p m a t r i x }", "canonical_pred": "\\begin { p m a t r i x } a b \\end { p m a t r i x }", "equivalent": false, "gt": "\\begin{pmatrix}a & b\\end{pmatrix}", "pred": "\\begin{pmatrix}ab\\end{pmatrix}", "source": "scorer_golden"}
+{"canonical_gt": "\\begin { p m a t r i x } a & b & c \\end { p m a t r i x }", "canonical_pred": "\\begin { p m a t r i x } a & b c \\end { p m a t r i x }", "equivalent": false, "gt": "\\begin{pmatrix}a & b & c\\end{pmatrix}", "pred": "\\begin{pmatrix}a & bc\\end{pmatrix}", "source": "scorer_golden"}
+{"canonical_gt": "\\begin { a r r a y } { c c } a & b \\\\ c & d \\end { a r r a y }", "canonical_pred": "\\begin { a r r a y } { c c } a b \\\\ c d \\end { a r r a y }", "equivalent": false, "gt": "\\begin{array}{cc} a & b \\\\ c & d \\end{array}", "pred": "\\begin{array}{cc} ab \\\\ cd \\end{array}", "source": "scorer_golden"}
+{"canonical_gt": "\\begin { c a s e s } x & y > 0 \\\\ 0 & y \\leq 0 \\end { c a s e s }", "canonical_pred": "\\begin { c a s e s } x y > 0 \\\\ 0 y \\leq 0 \\end { c a s e s }", "equivalent": false, "gt": "\\begin{cases} x & y>0 \\\\ 0 & y\\leq 0 \\end{cases}", "pred": "\\begin{cases} x y>0 \\\\ 0 y\\leq 0 \\end{cases}", "source": "scorer_golden"}
+{"canonical_gt": "\\begin { a l i g n e d } a & = b \\\\ c & = d \\end { a l i g n e d }", "canonical_pred": "\\begin { a l i g n e d } a = b \\\\ c = d \\end { a l i g n e d }", "equivalent": false, "gt": "\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}", "pred": "\\begin{aligned} a = b \\\\ c = d \\end{aligned}", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f '", "equivalent": true, "gt": "f'", "pred": "f^{\\prime}", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f '", "equivalent": true, "gt": "f'", "pred": "f^\\prime", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f '", "equivalent": true, "gt": "f'", "pred": "f^{'}", "source": "scorer_golden"}
+{"canonical_gt": "f ' '", "canonical_pred": "f ' '", "equivalent": true, "gt": "f''", "pred": "f^{\\prime\\prime}", "source": "scorer_golden"}
+{"canonical_gt": "u ' _ n", "canonical_pred": "u ' _ n", "equivalent": true, "gt": "u^{\\prime}_n", "pred": "u'_n", "source": "scorer_golden"}
+{"canonical_gt": "\\leq", "canonical_pred": "\\leq", "equivalent": true, "gt": "\\le", "pred": "\\leq", "source": "scorer_golden"}
+{"canonical_gt": "\\geq", "canonical_pred": "\\geq", "equivalent": true, "gt": "\\ge", "pred": "\\geq", "source": "scorer_golden"}
+{"canonical_gt": "\\neq", "canonical_pred": "\\neq", "equivalent": true, "gt": "\\ne", "pred": "\\neq", "source": "scorer_golden"}
+{"canonical_gt": "( x )", "canonical_pred": "( x )", "equivalent": true, "gt": "\\bigl( x \\bigr)", "pred": "( x )", "source": "scorer_golden"}
+{"canonical_gt": "[ x ]", "canonical_pred": "[ x ]", "equivalent": true, "gt": "\\Big[ x \\Big]", "pred": "[ x ]", "source": "scorer_golden"}
+{"canonical_gt": "x _ a", "canonical_pred": "x _ a", "equivalent": true, "gt": "x_{a}", "pred": "x_a", "source": "scorer_golden"}
+{"canonical_gt": "x ^ 2", "canonical_pred": "x ^ 2", "equivalent": true, "gt": "x^{2}", "pred": "x^2", "source": "scorer_golden"}
+{"canonical_gt": "\\frac a b", "canonical_pred": "\\frac a b", "equivalent": true, "gt": "\\frac{a}{b}", "pred": "\\frac ab", "source": "scorer_golden"}
+{"canonical_gt": "\\sqrt 2", "canonical_pred": "\\sqrt 2", "equivalent": true, "gt": "\\sqrt{2}", "pred": "\\sqrt2", "source": "scorer_golden"}
+{"canonical_gt": "\\hat x", "canonical_pred": "\\hat x", "equivalent": true, "gt": "\\hat{x}", "pred": "\\hat x", "source": "scorer_golden"}
+{"canonical_gt": "x _ b ^ a", "canonical_pred": "x _ b ^ a", "equivalent": true, "gt": "x^a_b", "pred": "x_b^a", "source": "scorer_golden"}
+{"canonical_gt": "x _ n ^ 2", "canonical_pred": "x _ n ^ 2", "equivalent": true, "gt": "x^{2}_{n}", "pred": "x_n^2", "source": "scorer_golden"}
+{"canonical_gt": "a b", "canonical_pred": "a b", "equivalent": true, "gt": "a\\,b", "pred": "a b", "source": "scorer_golden"}
+{"canonical_gt": "a b", "canonical_pred": "a b", "equivalent": true, "gt": "a\\;b", "pred": "a b", "source": "scorer_golden"}
+{"canonical_gt": "a b", "canonical_pred": "a b", "equivalent": true, "gt": "a\\quad b", "pred": "a b", "source": "scorer_golden"}
+{"canonical_gt": "a b", "canonical_pred": "a b", "equivalent": true, "gt": "a~b", "pred": "a b", "source": "scorer_golden"}
+{"canonical_gt": "x \\right |", "canonical_pred": "x \\right |", "equivalent": true, "gt": "\\left. x \\right|", "pred": "x \\right|", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "$$ x+1 $$", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "\\[x+1\\]", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "\\begin{equation} x+1 \\label{eq:a} \\end{equation}", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "x+1 \\tag{3}", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "x+1 \\nonumber", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "x+1,", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "x+1 \\qquad (12a)", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "a = b", "canonical_pred": "a = b", "equivalent": true, "gt": "a &= b", "pred": "a = b", "source": "scorer_golden"}
+{"canonical_gt": "x", "canonical_pred": "x \\right", "equivalent": false, "gt": "\\left. x \\right.", "pred": "x \\right", "source": "scorer_golden"}
+{"canonical_gt": "\\left \\{ a", "canonical_pred": "\\left \\{ a \\right", "equivalent": false, "gt": "\\left\\{ a \\right.", "pred": "\\left\\{ a \\right", "source": "scorer_golden"}
+{"canonical_gt": "= \\ln ( 2 )", "canonical_pred": "= \\ln", "equivalent": false, "gt": "= \\ln (2)", "pred": "= \\ln", "source": "scorer_golden"}
+{"canonical_gt": "y = f ( 3 )", "canonical_pred": "y = f", "equivalent": false, "gt": "y = f (3)", "pred": "y = f", "source": "scorer_golden"}
+{"canonical_gt": "\\begin { p m a t r i x } a & b \\\\ c & d \\end { p m a t r i x }", "canonical_pred": "\\begin { p m a t r i x } a & b \\\\ c & d \\end { p m a t r i x }", "equivalent": true, "gt": "\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}", "pred": "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "\\begin{flalign*} x+1 \\end{flalign*}", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 1", "equivalent": true, "gt": "\\begin{math} x+1 \\end{math}", "pred": "x+1", "source": "scorer_golden"}
+{"canonical_gt": "f '", "canonical_pred": "f l", "equivalent": false, "expect": "wrong", "expect_class": "prime_l", "gt": "f'", "id": "r000", "pred": "fl", "source": "adversarial"}
+{"canonical_gt": "f ' ( x )", "canonical_pred": "f l ( x )", "equivalent": false, "expect": "wrong", "expect_class": "prime_l", "gt": "f'(x)", "id": "r001", "pred": "fl(x)", "source": "adversarial"}
+{"canonical_gt": "f '", "canonical_pred": "f ^ l", "equivalent": false, "expect": "wrong", "expect_class": "prime_l", "gt": "f^{\\prime}", "id": "r002", "pred": "f^{l}", "source": "adversarial"}
+{"canonical_gt": "f '", "canonical_pred": "f \\ell", "equivalent": false, "expect": "wrong", "expect_class": "prime_l", "gt": "f'", "id": "r003", "pred": "f\\ell", "source": "adversarial"}
+{"canonical_gt": "f '", "canonical_pred": "f", "equivalent": false, "expect": "wrong", "expect_class": "dropped_prime", "gt": "f'", "id": "r004", "pred": "f", "source": "adversarial"}
+{"canonical_gt": "f ' '", "canonical_pred": "f '", "equivalent": false, "expect": "wrong", "expect_class": "dropped_prime", "gt": "f''", "id": "r005", "pred": "f'", "source": "adversarial"}
+{"canonical_gt": "u ' _ n", "canonical_pred": "u _ n", "equivalent": false, "expect": "wrong", "expect_class": "dropped_prime", "gt": "u^{\\prime}_n", "id": "r006", "pred": "u_n", "source": "adversarial"}
+{"canonical_gt": "\\upsilon", "canonical_pred": "v", "equivalent": false, "expect": "wrong", "expect_class": "greek_latin", "gt": "\\upsilon", "id": "r007", "pred": "v", "source": "adversarial"}
+{"canonical_gt": "\\nu", "canonical_pred": "v", "equivalent": false, "expect": "wrong", "expect_class": "greek_latin", "gt": "\\nu", "id": "r008", "pred": "v", "source": "adversarial"}
+{"canonical_gt": "\\alpha", "canonical_pred": "a", "equivalent": false, "expect": "wrong", "expect_class": "greek_latin", "gt": "\\alpha", "id": "r009", "pred": "a", "source": "adversarial"}
+{"canonical_gt": "\\epsilon", "canonical_pred": "e", "equivalent": false, "expect": "wrong", "expect_class": "greek_latin", "gt": "\\epsilon", "id": "r010", "pred": "e", "source": "adversarial"}
+{"canonical_gt": "\\mathbf x", "canonical_pred": "x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\mathbf{x}", "id": "r011", "pred": "x", "source": "adversarial"}
+{"canonical_gt": "\\boldsymbol x", "canonical_pred": "x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\boldsymbol{x}", "id": "r012", "pred": "x", "source": "adversarial"}
+{"canonical_gt": "\\bm x", "canonical_pred": "x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\bm{x}", "id": "r013", "pred": "x", "source": "adversarial"}
+{"canonical_gt": "\\bar x", "canonical_pred": "x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\bar{x}", "id": "r014", "pred": "x", "source": "adversarial"}
+{"canonical_gt": "\\underline x", "canonical_pred": "x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\underline{x}", "id": "r015", "pred": "x", "source": "adversarial"}
+{"canonical_gt": "\\hat x", "canonical_pred": "x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\hat{x}", "id": "r016", "pred": "x", "source": "adversarial"}
+{"canonical_gt": "\\mathbf x", "canonical_pred": "\\mathrm x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\mathbf{x}", "id": "r017", "pred": "\\mathrm{x}", "source": "adversarial"}
+{"canonical_gt": "\\mathbf x", "canonical_pred": "\\bm x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\mathbf{x}", "id": "r018", "pred": "\\bm{x}", "source": "adversarial"}
+{"canonical_gt": "\\bar x", "canonical_pred": "\\overline x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\bar{x}", "id": "r019", "pred": "\\overline{x}", "source": "adversarial"}
+{"canonical_gt": "\\mathrm d x", "canonical_pred": "d x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\mathrm{d}x", "id": "r020", "pred": "dx", "source": "adversarial"}
+{"canonical_gt": "I", "canonical_pred": "1", "equivalent": false, "expect": "wrong", "expect_class": "i_1", "gt": "I", "id": "r021", "pred": "1", "source": "adversarial"}
+{"canonical_gt": "x _ I", "canonical_pred": "x _ 1", "equivalent": false, "expect": "wrong", "expect_class": "i_1", "gt": "x_I", "id": "r022", "pred": "x_1", "source": "adversarial"}
+{"canonical_gt": "A ^ { - 1 }", "canonical_pred": "A ^ { - I }", "equivalent": false, "expect": "wrong", "expect_class": "i_1", "gt": "A^{-1}", "id": "r023", "pred": "A^{-I}", "source": "adversarial"}
+{"canonical_gt": "f '", "canonical_pred": "f '", "equivalent": true, "expect": "right", "expect_class": null, "gt": "f'", "id": "r024", "pred": "f^{\\prime}", "source": "adversarial"}
+{"canonical_gt": "f '", "canonical_pred": "f '", "equivalent": true, "expect": "right", "expect_class": null, "gt": "f'", "id": "r025", "pred": "f^\\prime", "source": "adversarial"}
+{"canonical_gt": "f '", "canonical_pred": "f '", "equivalent": true, "expect": "right", "expect_class": null, "gt": "f'", "id": "r026", "pred": "f^{'}", "source": "adversarial"}
+{"canonical_gt": "f ' '", "canonical_pred": "f ' '", "equivalent": true, "expect": "right", "expect_class": null, "gt": "f''", "id": "r027", "pred": "f^{\\prime\\prime}", "source": "adversarial"}
+{"canonical_gt": "u ' _ n", "canonical_pred": "u ' _ n", "equivalent": true, "expect": "right", "expect_class": null, "gt": "u^{\\prime}_n", "id": "r028", "pred": "u'_n", "source": "adversarial"}
+{"canonical_gt": "\\leq", "canonical_pred": "\\leq", "equivalent": true, "expect": "right", "expect_class": null, "gt": "\\le", "id": "r029", "pred": "\\leq", "source": "adversarial"}
+{"canonical_gt": "\\geq", "canonical_pred": "\\geq", "equivalent": true, "expect": "right", "expect_class": null, "gt": "\\ge", "id": "r030", "pred": "\\geq", "source": "adversarial"}
+{"canonical_gt": "\\neq", "canonical_pred": "\\neq", "equivalent": true, "expect": "right", "expect_class": null, "gt": "\\ne", "id": "r031", "pred": "\\neq", "source": "adversarial"}
+{"canonical_gt": "( x )", "canonical_pred": "( x )", "equivalent": true, "expect": "right", "expect_class": null, "gt": "\\bigl( x \\bigr)", "id": "r032", "pred": "( x )", "source": "adversarial"}
+{"canonical_gt": "[ x ]", "canonical_pred": "[ x ]", "equivalent": true, "expect": "right", "expect_class": null, "gt": "\\Big[ x \\Big]", "id": "r033", "pred": "[ x ]", "source": "adversarial"}
+{"canonical_gt": "x _ a", "canonical_pred": "x _ a", "equivalent": true, "expect": "right", "expect_class": null, "gt": "x_{a}", "id": "r034", "pred": "x_a", "source": "adversarial"}
+{"canonical_gt": "x ^ 2", "canonical_pred": "x ^ 2", "equivalent": true, "expect": "right", "expect_class": null, "gt": "x^{2}", "id": "r035", "pred": "x^2", "source": "adversarial"}
+{"canonical_gt": "\\boldsymbol x", "canonical_pred": "\\bm x", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\boldsymbol{x}", "id": "r036", "pred": "\\bm{x}", "source": "adversarial"}
+{"canonical_gt": "x + 1", "canonical_pred": "\\undefinedcmd { x }", "equivalent": false, "expect": "wrong", "expect_class": "other", "gt": "x+1", "id": "r037", "pred": "\\undefinedcmd{x}", "source": "adversarial"}
+{"canonical_gt": "\\R ^ n", "canonical_pred": "\\mathbb R ^ n", "equivalent": false, "expect": "wrong", "expect_class": "decoration", "gt": "\\R^n", "id": "r038", "pred": "\\mathbb{R}^n", "source": "adversarial"}
+{"canonical_gt": "x + 1", "canonical_pred": "", "equivalent": false, "expect": "wrong", "expect_class": "other", "gt": "x+1", "id": "r039", "pred": "", "source": "adversarial"}
+{"canonical_gt": "x + 1", "canonical_pred": "x + 2", "equivalent": false, "expect": "wrong", "expect_class": "other", "gt": "x+1", "id": "r040", "pred": "x+2", "source": "adversarial"}
+{"canonical_gt": "a = b", "canonical_pred": "a = b", "equivalent": true, "expect": "right", "expect_class": null, "gt": "a=b", "id": "r041", "pred": "a=b", "source": "adversarial"}
