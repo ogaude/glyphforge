@@ -1,0 +1,87 @@
+# Hand-written for GlyphForge and dedicated to the public domain (CC0-1.0). Not taken from any paper.
+licence: CC0-1.0
+formulas:
+  # primes
+  - latex: f'(t)=g(t)
+  - latex: f''(t)+g(t)=h(t)
+  - latex: y^{\prime}=a y
+  - latex: a'+b'
+  - latex: u'_{n}+w'_{n}
+  - latex: \theta'(t)=\mu'(t)
+  - latex: g''(s)-h''(s)=c
+  # greek and latin look-alikes
+  - latex: \upsilon+a
+  - latex: a+v
+  - latex: \nu_{n}+\nu_{m}
+  - latex: \iota+a
+  - latex: a_{i}+b
+  - latex: \kappa+a
+  - latex: a_{k}+b
+  - latex: \omicron+a
+  - latex: a_{o}+b
+  - latex: \rho+a
+  - latex: p+q
+  - latex: \chi+a
+  - latex: a_{x}+b
+  - latex: \upsilon_{a}+\nu_{b}
+  - latex: v_{a}+\iota_{b}
+  # digit and letter look-alikes
+  - latex: a_{I}+b
+  - latex: a_{l}+b
+  - latex: a_{1}+b
+  - latex: '|a|+b'
+  - latex: O(n)
+  - latex: a_{0}+b
+  - latex: \ell+a
+  - latex: I+a
+  - latex: a|b
+  # decorations
+  - latex: \mathbf{a}+b
+  - latex: \boldsymbol{a}+b
+  - latex: \bm{a}+b
+  - latex: \bar{a}+b
+  - latex: \hat{a}+b
+  - latex: \tilde{a}+b
+  - latex: \vec{a}+b
+  - latex: \dot{a}+b
+  - latex: \overline{ab}+c
+  - latex: \underline{ab}+c
+  - latex: \widehat{ab}+c
+  - latex: \widetilde{ab}+c
+  - latex: \overrightarrow{ab}+c
+  - latex: \boldsymbol{x}+y
+  - latex: \bm{x}+y
+  # alphabets
+  - latex: \mathbb{R}^{n}
+  - latex: \mathrm{d}t
+  - latex: \mathcal{L}(a)
+  - latex: \mathscr{F}(a)
+  - latex: \mathfrak{A}
+  - latex: \mathsf{T}
+  - latex: \mathbf{R}^{n}
+  - latex: \mathrm{e}^{-t}
+  - latex: \mathbb{N} \subset \mathbb{R}
+  # mixed contexts
+  - latex: \frac{a}{b}+\sqrt{c}
+  - latex: \int_{a}^{b} f(t)\,\mathrm{d}t
+  - latex: \sum_{n=2}^{N} a_{n}
+  - latex: \lim_{n\to\infty} a_{n}=\mu
+  - latex: \frac{\partial u}{\partial t}=\Delta u
+  - latex: \begin{pmatrix} a & b \\ c & d \end{pmatrix}
+  # display environments
+  - latex: a &= b+c \\ d &= e+f
+    env: align*
+  - latex: f(t) &= \sigma t \\ g(t) &= \omega t
+    env: align*
+  - latex: \alpha &= \beta+\gamma \\ \delta &= \theta
+    env: align*
+  - latex: a+b=c \\ d+e=f
+    env: gather*
+  - latex: \bar{a}=\hat{b} \\ \tilde{c}=\vec{d}
+    env: gather*
+  - latex: \mathbf{u} &= \mathbf{R}\mathbf{w} \\ y' &= \mathcal{L}(y)
+    env: align*
+  - latex: \sum_{n=2}^{N} a_{n} \\ \int_{a}^{b} g
+    env: gather*
+  - latex: \upsilon_{a} &= \nu_{b} \\ \iota_{c} &= \kappa_{d}
+    env: align*
