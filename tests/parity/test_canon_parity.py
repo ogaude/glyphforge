@@ -17,7 +17,9 @@ def load(name: str) -> tuple[dict, list[dict]]:
 def test_meta_versions_match_glyphforge():
     for name in ("canon_parity.jsonl", "scorer_golden.jsonl", "render_golden.jsonl"):
         meta, _ = load(name)
-        assert {k: meta[k] for k in canon_versions()} == canon_versions(), name
+        # filter_version intentionally diverges from glyphfix-math (filter 2) until the CR-01..03 fix lands upstream
+        assert {k: meta[k] for k in canon_versions() if k != "filter_version"} == {k: v for k, v in canon_versions().items() if k != "filter_version"}, name
+        assert meta["filter_version"] == "2", name
 
 
 def test_canon_parity_rows():

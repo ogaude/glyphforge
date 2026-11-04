@@ -10,7 +10,9 @@ from glyphforge.render import cache, docker
 from glyphforge.render.style import Style
 
 GOLDEN = pathlib.Path(__file__).parent.parent / "fixtures" / "render_golden.jsonl"
-DEFAULT_KEY = "313423b35e9130aa86d42a8ee5488095070843cc3cde7e6b0f938a674aaf7c24"
+DEFAULT_KEY = "54b90ab633c451af08bb0e225e835dbc3f18dbdc14c25a8eb858c0d6560742e0"
+# glyphfix-math key (filter 2); diverges until the CR-01..03 fix lands upstream
+GM_DEFAULT_KEY = "313423b35e9130aa86d42a8ee5488095070843cc3cde7e6b0f938a674aaf7c24"
 
 
 def test_compare_requires_rendered(tmp_path):
@@ -38,7 +40,7 @@ def test_config_and_hash():
     c = cache.render_config()
     assert set(c) == {"image", "preamble_sha256", "wrap_version", "filter_version", "dpi", "ink_threshold", "tolerance"}
     assert c["preamble_sha256"] == docker.PREAMBLE_SHA256
-    assert c["filter_version"] == safety.FILTER_VERSION == "2"
+    assert c["filter_version"] == safety.FILTER_VERSION == "3"
     assert c["wrap_version"] == "1" and c["dpi"] == 300 and c["image"] == docker.IMAGE
     assert set(c["tolerance"]) == {"version", "shape_px", "pixel_delta", "max_component_px", "max_diff_px"}
     assert "upgreek" in raw.decode() and r"\begin{document}" not in raw.decode()
@@ -51,7 +53,7 @@ def test_cache_key_stability(monkeypatch):
     for mod, name, value in [
         (safety, "WRAP_VERSION", "2"),
         (docker, "PREAMBLE_SHA256", "0" * 64),
-        (safety, "FILTER_VERSION", "3"),
+        (safety, "FILTER_VERSION", "4"),
         (docker, "IMAGE_DIGEST", "sha256:" + "0" * 64),
     ]:
         monkeypatch.setattr(mod, name, value)
@@ -76,12 +78,16 @@ def test_style_keys():
     assert cache.cache_key("x+1", style=newtx) == hashlib.sha256(payload.encode()).hexdigest()
 
 
-def test_default_key_matches_glyphfix_math_golden_rows():
-    rows = [json.loads(line) for line in GOLDEN.read_text(encoding="utf-8").splitlines()]
-    rows = [r for r in rows if "_meta" not in r]
+def test_default_key_matches_glyphfix_math_golden_rows(monkeypatch):
+    """The key formula is still byte-identical to glyphfix-math (D-02); only the FILTER_VERSION input differs."""
+    lines = [json.loads(line) for line in GOLDEN.read_text(encoding="utf-8").splitlines()]
+    meta = next(r for r in lines if "_meta" in r)["_meta"]
+    rows = [r for r in lines if "_meta" not in r]
     assert rows
+    monkeypatch.setattr(safety, "FILTER_VERSION", meta["filter_version"])
     for r in rows:
         assert cache.cache_key(r["latex"]) == r["cache_key"]
+    assert cache.cache_key("x+1") == GM_DEFAULT_KEY
 
 
 def test_style_preambles():

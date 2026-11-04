@@ -167,10 +167,9 @@ def render_many(
     for key, latex, s in zip(keys, latex_list, styles, strict=True):
         if key in todo:
             continue
-        # check_safe runs before the cache lookup, so entries written under an older, laxer filter are not served
-        reason = safety.check_safe(latex)
-        if reason is None and wrapper == "env" and not safety._VERBATIM_ENV_RE.match(latex.strip()):
-            reason = "not a starred display env"
+        # check_render runs before the cache lookup, so entries written under an older, laxer filter are not served,
+        # and it runs on the compiled body (render_body), not only the raw string
+        reason = safety.check_render(latex, wrapper)
         cached = _cache._cache_get(cache, key)
         if reason is not None:
             status = "empty" if reason == "empty" else "rejected"
