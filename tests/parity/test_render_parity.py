@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 
 from glyphforge.canon import safety
-from glyphforge.render import IMAGE_DIGEST, PREAMBLE_SHA256, Style, cache as render_cache, docker, render_many
+from glyphforge.render import IMAGE_DIGEST, PREAMBLE_SHA256, Style, docker, render_many
+from glyphforge.render import cache as render_cache
 
 pytestmark = [pytest.mark.docker, pytest.mark.skipif(not docker.docker_available(), reason="pinned texlive image not available")]
 
