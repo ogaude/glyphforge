@@ -51,11 +51,13 @@ def test_pull_only_when_requested(calls, tmp_path, monkeypatch):
 
 def test_probe_parsing(calls, tmp_path, monkeypatch):
     calls, _ = calls
-    oks = "".join(f"GF:ok:{f}\n" for f in doctor.PROBE_FILES if f != "stix2.sty")
-    _fake_batch(monkeypatch, tmp_path, oks + "GF:missing:stix2.sty\n")
+    def oks(skip):
+        return "".join(f"GF:ok:{f}\n" for f in (*doctor.PROBE_FILES, "mathscr") if f != skip)
+
+    _fake_batch(monkeypatch, tmp_path, oks("stix2.sty") + "GF:missing:stix2.sty\n")
     probe = {c.name: c for c in doctor.run_checks(cache=tmp_path)}["probe"]
     assert not probe.ok and "stix2.sty" in probe.detail
-    _fake_batch(monkeypatch, tmp_path, "GF:missing:lgrmath.sty\n")
+    _fake_batch(monkeypatch, tmp_path, oks("lgrmath.sty") + "GF:missing:lgrmath.sty\n")
     probe = {c.name: c for c in doctor.run_checks(cache=tmp_path)}["probe"]
     assert probe.ok and "lgrmath" in probe.detail
 

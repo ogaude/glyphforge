@@ -65,7 +65,8 @@ def run_checks(*, pull: bool = False, cache: Path | None = None) -> list[Check]:
             else:
                 log = (workdir / "batch.log").read_text(encoding="utf-8", errors="replace")
                 shutil.rmtree(workdir, ignore_errors=True)
-                missing = re.findall(r"GF:missing:(\S+)", log)
+                seen = set(re.findall(r"GF:ok:(\S+)", log))
+                missing = [f for f in (*PROBE_FILES, "mathscr") if f not in seen]
                 hard = [m for m in missing if m not in OPTIONAL]
                 checks.append(Check("probe", not hard, ("missing: " + ", ".join(missing)) if missing else f"{len(PROBE_FILES) + 1} items present"))
 
