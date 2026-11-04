@@ -3,7 +3,8 @@
 Equations are untrusted. They are only ever written into batch.tex, never into a shell string or argv.
 pdflatex runs in the pinned texlive/texlive image (by digest) with no network, a memory cap, a pid cap,
 dropped capabilities, a read-only root file system, a non-root user, -no-shell-escape and a host timeout
-followed by an explicit `docker kill`.
+followed by an explicit, confirmed `docker kill`. After every compile the workdir (the only host-writable mount) must
+contain nothing but the known pdflatex files; anything else is an infrastructure failure.
 
 Infrastructure failures (Docker unreachable, container killed, no pdflatex log) raise
 RenderInfrastructureError; only outcomes attributable to LaTeX are returned.
@@ -13,11 +14,13 @@ from __future__ import annotations
 
 import hashlib
 import importlib.resources
+import logging
 import os
 import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import uuid
 from collections.abc import Sequence
 from pathlib import Path
@@ -110,6 +113,54 @@ def _infra_error(workdir: Path, what: str, proc: subprocess.CompletedProcess) ->
 
 _START_LOCK = threading.Lock()
 _inflight = [0]  # containers started by this process and not yet finished (guarded by _START_LOCK)
+_RESERVE_TIMEOUT_S = 600
+_RESERVE_POLL_S = 10
+
+# Files a legitimate pdflatex run leaves in the workdir. If a style/package legitimately adds another file (e.g. batch.out),
+# add that exact name here with a one-line justification naming the package; never weaken the guard (no glob, no suffix
+# match, no warning instead of raise).
+_WORKDIR_FILES = frozenset({"batch.tex", "batch.log", "batch.aux", "batch.pdf"})
+
+
+def _reserve() -> None:
+    """Block until one more container fits in MemAvailable (running ones counted at their full cap), then count it in flight.
+
+    The check and the increment are one step under _START_LOCK; sleeping happens outside it and _inflight is re-read on every
+    poll, so finishing containers lower the requirement. Raises RenderInfrastructureError after _RESERVE_TIMEOUT_S.
+    """
+    deadline = time.monotonic() + _RESERVE_TIMEOUT_S
+    while True:
+        with _START_LOCK:
+            need = int(resources.DOCKER_MEMORY_GB * resources.GIB) * (_inflight[0] + 1) + resources.RAM_FLOOR_BYTES
+            try:
+                available = resources.mem_available_bytes()
+            except (OSError, resources.GuardUnmeasurable) as e:
+                raise RenderInfrastructureError(f"cannot measure MemAvailable: {e}") from e
+            if available >= need:
+                _inflight[0] += 1
+                return
+        if time.monotonic() >= deadline:
+            raise RenderInfrastructureError(
+                f"memory floor not met for {_RESERVE_TIMEOUT_S}s: MemAvailable {available} < needed {need} bytes "
+                "(lower GLYPHFORGE_DOCKER_MEMORY_GB or free memory)"
+            )
+        logging.getLogger(__name__).warning("waiting for memory: MemAvailable %d < needed %d bytes", available, need)
+        time.sleep(_RESERVE_POLL_S)
+
+
+def _kill(name: str) -> None:
+    """Stop a timed-out container with bounded calls and confirm it is gone; otherwise raise RenderInfrastructureError."""
+    ps = ["docker", "ps", "-q", "--filter", f"name=^{name}$"]
+    try:
+        subprocess.run(["docker", "kill", name], capture_output=True, check=False, timeout=30)
+        listed = subprocess.run(ps, capture_output=True, text=True, check=False, timeout=30).stdout.strip()
+        if listed:
+            subprocess.run(["docker", "rm", "-f", name], capture_output=True, check=False, timeout=30)
+            listed = subprocess.run(ps, capture_output=True, text=True, check=False, timeout=30).stdout.strip()
+    except (subprocess.TimeoutExpired, OSError) as e:
+        raise RenderInfrastructureError(f"timed-out container {name} could not be confirmed stopped: {type(e).__name__}") from e
+    if listed:
+        raise RenderInfrastructureError(f"timed-out container {name} could not be confirmed stopped: still listed by docker ps")
 
 
 def _run_batch(
@@ -127,11 +178,7 @@ def _run_batch(
     `source`, when given, is written to batch.tex verbatim instead of the wrapped equations. It is for trusted
     callers only (the doctor probe and sandbox tests); the public render path never passes it.
     """
-    with _START_LOCK:
-        # Serialized: the check and the reservation are one step, and containers already running are counted at their
-        # full cap (conservative), so N workers cannot all pass the MemAvailable check at the same moment.
-        resources.preflight(ram_gb=resources.DOCKER_MEMORY_GB, workers=_inflight[0] + 1, timeout_s=600)
-        _inflight[0] += 1
+    _reserve()
     try:
         return _run_batch_reserved(latexes, work_root, timeout_s, wrapper, preamble=preamble, source=source)
     finally:
@@ -161,9 +208,12 @@ def _run_batch_reserved(
                 _docker_cmd(name, workdir.resolve()), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout_s, check=False
             )
         except subprocess.TimeoutExpired:
-            # equivalent of `docker kill <name>`: the host timeout is the only limit, so stop the container explicitly
-            subprocess.run(["docker", "kill", name], capture_output=True, check=False)
+            # the host timeout is the only limit, so stop the container explicitly and confirm it is gone
+            _kill(name)
             return None, "timeout", True
+        extra = sorted(p.name for p in workdir.iterdir() if p.name not in _WORKDIR_FILES)
+        if extra:
+            raise _infra_error(workdir, f"unexpected files in sandbox workdir: {extra[:10]}", proc)
         if proc.returncode in KILL_EXIT_CODES:
             return None, f"{KILLED_NOTE}, exit {proc.returncode}", False
         if proc.returncode in INFRA_EXIT_CODES:

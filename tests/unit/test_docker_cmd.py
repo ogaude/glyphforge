@@ -47,11 +47,12 @@ def test_batch_source_preamble():
 
 
 def test_timeout_kills_container(tmp_path, monkeypatch):
-    monkeypatch.setattr(resources, "preflight", lambda *a, **k: None)
-    calls = []
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda *a, **k: 1 << 50)
+    calls, kws = [], []
 
     def run(cmd, **kw):
         calls.append(cmd)
+        kws.append(kw)
         if cmd[:2] == ["docker", "run"]:
             raise subprocess.TimeoutExpired(cmd, 1)
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
@@ -59,20 +60,36 @@ def test_timeout_kills_container(tmp_path, monkeypatch):
     monkeypatch.setattr(docker.subprocess, "run", run)
     assert docker._run_batch(["x"], tmp_path, 1) == (None, "timeout", True)
     assert calls[1][:2] == ["docker", "kill"] and calls[1][2].startswith("glyphforge-render-")
+    assert kws[1].get("timeout")
+    assert calls[2][:3] == ["docker", "ps", "-q"]
     assert calls[1][2] == calls[0][calls[0].index("--name") + 1]
     assert list(tmp_path.iterdir()) == []
 
 
 def test_source_override_written_verbatim(tmp_path, monkeypatch):
-    monkeypatch.setattr(resources, "preflight", lambda *a, **k: None)
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda *a, **k: 1 << 50)
     seen = {}
 
     def run(cmd, **kw):
         if cmd[:2] != ["docker", "run"]:
-            return subprocess.CompletedProcess(cmd, 0)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
         seen["tex"] = next(tmp_path.iterdir()).joinpath("batch.tex").read_text()
         raise subprocess.TimeoutExpired(cmd, 1)
 
     monkeypatch.setattr(docker.subprocess, "run", run)
     docker._run_batch(["x"], tmp_path, 1, source="RAW")
     assert seen["tex"] == "RAW"
+
+
+def test_unconfirmed_kill_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda *a, **k: 1 << 50)
+
+    def run(cmd, **kw):
+        if cmd[:2] == ["docker", "run"]:
+            raise subprocess.TimeoutExpired(cmd, 1)
+        return subprocess.CompletedProcess(cmd, 0, stdout="abc123\n", stderr="")
+
+    monkeypatch.setattr(docker.subprocess, "run", run)
+    with pytest.raises(docker.RenderInfrastructureError, match="glyphforge-render-"):
+        docker._run_batch(["x"], tmp_path, 1)
+    assert list(tmp_path.iterdir()) == []

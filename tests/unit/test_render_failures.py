@@ -1,6 +1,7 @@
 import json
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -13,8 +14,8 @@ from glyphforge.render.style import Style
 
 @pytest.fixture(autouse=True)
 def _no_preflight(monkeypatch):
-    monkeypatch.setattr(resources, "preflight", lambda *a, **k: None)
-    # Scenario fakes only understand `docker run`; the Docker preflight has its own tests below.
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda *a, **k: 1 << 50)
+    # Scenario fakes only understand `docker run`; the memory reservation has its own tests below.
     monkeypatch.setattr(docker, "docker_available", lambda: True)
 
 
@@ -31,7 +32,7 @@ class Fake:
         self._lock = threading.Lock()
 
     def __call__(self, argv, *a, **k):
-        if argv[:2] == ["docker", "kill"]:
+        if argv[:2] != ["docker", "run"]:
             return subprocess.CompletedProcess(argv, 0, "", "")
         with self._lock:
             self.calls += 1
@@ -138,7 +139,7 @@ def test_latex_error_is_cached_with_bang_note(tmp_path, monkeypatch):
 
 def test_timeout_returned_but_not_cached(tmp_path, monkeypatch):
     def run(argv, *a, **k):
-        if argv[:2] == ["docker", "kill"]:
+        if argv[:2] != ["docker", "run"]:
             return subprocess.CompletedProcess(argv, 0, "", "")
         raise subprocess.TimeoutExpired(argv, 1)
 
@@ -260,14 +261,93 @@ def test_real_error_not_masked_by_aborted_sibling(tmp_path, monkeypatch):
         batch.render_many(["a", "b"], batch_size=1, cache=tmp_path, max_parallel=2)
 
 
-def test_preflight_counts_inflight_containers(tmp_path, monkeypatch):
-    seen = []
-    monkeypatch.setattr(resources, "preflight", lambda *a, **k: seen.append(k.get("workers", 1)))
+def test_reservation_releases_lock_while_waiting(tmp_path, monkeypatch):
+    need_one = int(resources.DOCKER_MEMORY_GB * resources.GIB) + resources.RAM_FLOOR_BYTES
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda *a, **k: need_one)
+    monkeypatch.setattr(docker, "_RESERVE_POLL_S", 0.05)
+    monkeypatch.setattr(docker, "_RESERVE_TIMEOUT_S", 5)
+    _install(monkeypatch, healthy)
+    docker._inflight[0] = 1
+    out = []
+    t = threading.Thread(target=lambda: out.append(docker._run_batch(["x"], tmp_path, 5)))
+    t.start()
+    try:
+        time.sleep(0.2)
+        assert docker._START_LOCK.acquire(timeout=1)  # the waiter sleeps outside the lock
+        docker._START_LOCK.release()
+        assert t.is_alive() and not out
+        docker._inflight[0] = 0
+        t.join(5)
+        assert out and out[0][0] is not None
+    finally:
+        docker._inflight[0] = 0
+        t.join(5)
+    assert docker._inflight[0] == 0
+
+
+def test_reservation_timeout_is_infrastructure(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda *a, **k: 0)
+    monkeypatch.setattr(docker, "_RESERVE_POLL_S", 0.05)
+    monkeypatch.setattr(docker, "_RESERVE_TIMEOUT_S", 0.2)
+    f = _install(monkeypatch, healthy)
+    with pytest.raises(docker.RenderInfrastructureError, match="memory floor"):
+        docker._run_batch(["x"], tmp_path, 5)
+    assert docker._inflight[0] == 0 and f.calls == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_unexpected_workdir_file_is_infrastructure(tmp_path, monkeypatch):
+    def scenario(argv, wd):
+        (wd / "pwned.txt").write_text("x")
+        return healthy(argv, wd)
+
+    _install(monkeypatch, scenario)
+    with pytest.raises(docker.RenderInfrastructureError, match="pwned.txt"):
+        docker._run_batch(["x"], tmp_path / "work", 5)
+    assert list((tmp_path / "work").glob("batch-*")) == []
+
+
+def test_aux_file_is_accepted(tmp_path, monkeypatch):
+    def scenario(argv, wd):
+        (wd / "batch.aux").write_text("x")
+        return healthy(argv, wd)
+
+    _install(monkeypatch, scenario)
+    wd, _err, timed_out = docker._run_batch(["x"], tmp_path / "work", 5)
+    assert wd is not None and not timed_out
+
+
+def test_right_half_workdir_removed_when_left_half_raises(tmp_path, monkeypatch):
+    def run(argv, *a, **k):
+        if argv[:2] != ["docker", "run"]:
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        wd = _workdir(argv)
+        tex = (wd / "batch.tex").read_text()
+        if all(f"e{i}" in tex for i in range(4)):
+            raise subprocess.TimeoutExpired(argv, 1)  # whole batch
+        if "e0" in tex and "e2" not in tex:
+            if "e1" in tex:
+                raise subprocess.TimeoutExpired(argv, 1)  # left half
+            return outage(argv, wd)  # left singleton
+        return healthy(argv, wd)
+
+    monkeypatch.setattr(docker.subprocess, "run", run)
+    _pages(monkeypatch)
+    with pytest.raises(docker.RenderInfrastructureError):
+        batch.render_many([f"e{i}" for i in range(4)], batch_size=4, cache=tmp_path, max_parallel=1)
+    assert list((tmp_path / "work").glob("batch-*")) == []
+
+
+def test_zero_cap_does_not_call_preflight(tmp_path, monkeypatch):
+    def boom(*a, **k):
+        raise AssertionError("preflight must not be called")
+
+    monkeypatch.setattr(resources, "preflight", boom)
+    monkeypatch.setattr(resources, "docker_parallel_cap", lambda: 0)
     _install(monkeypatch, healthy)
     _pages(monkeypatch)
-    batch.render_many(["a", "b", "c"], batch_size=1, cache=tmp_path, max_parallel=1)
-    assert seen and all(w == 1 for w in seen)  # sequential: nothing in flight at each check
-    assert docker._inflight[0] == 0
+    (res,) = batch.render_many(["a"], cache=tmp_path)
+    assert res.status == "rendered"
 
 
 def test_inflight_released_on_failure(tmp_path, monkeypatch):
@@ -281,7 +361,7 @@ def test_timeout_on_both_halves_is_infrastructure(tmp_path, monkeypatch):
     calls = []
 
     def run(argv, *a, **k):
-        if argv[:2] == ["docker", "kill"]:
+        if argv[:2] != ["docker", "run"]:
             return subprocess.CompletedProcess(argv, 0, "", "")
         calls.append(argv)
         raise subprocess.TimeoutExpired(argv, 1)
