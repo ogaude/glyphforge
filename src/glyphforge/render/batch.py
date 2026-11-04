@@ -129,7 +129,12 @@ def _render_group_inner(
                 f"both halves of a timed-out batch of {len(items)} also timed out after {timeout_s}s: host too slow "
                 "or overloaded (check swap and CPU load), refusing to score every item as a timeout"
             )
-    out = _render_group_inner(items[:mid], work_root, timeout_s, cache, abort=abort, errors=errors, first=left_first, wrapper=wrapper, preamble=preamble)
+    try:
+        out = _render_group_inner(items[:mid], work_root, timeout_s, cache, abort=abort, errors=errors, first=left_first, wrapper=wrapper, preamble=preamble)
+    except BaseException:
+        if right_first is not None and right_first[0] is not None:
+            shutil.rmtree(right_first[0], ignore_errors=True)
+        raise
     out.update(_render_group_inner(items[mid:], work_root, timeout_s, cache, abort=abort, errors=errors, first=right_first, wrapper=wrapper, preamble=preamble))
     return out
 
@@ -194,9 +199,8 @@ def render_many(
             preambles[s.preamble_sha256] = None if s.is_default else s.preamble
         groups = [(items[i : i + size], preambles[pk]) for pk, items in buckets.items() for i in range(0, len(items), size)]
         parallel = max_parallel if max_parallel is not None else resources.docker_parallel_cap()
-        if parallel <= 0:
-            resources.preflight(ram_gb=resources.DOCKER_MEMORY_GB, timeout_s=600)
-            parallel = 1
+        # the per-container reservation in docker._run_batch is the memory gate (it waits, then raises RenderInfrastructureError)
+        parallel = max(parallel, 1)
         work_root = (Path(cache) if cache is not None else paths.cache_dir()) / "work"
         abort = threading.Event()
         errors: list[BaseException] = []
