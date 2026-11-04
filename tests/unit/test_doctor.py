@@ -1,9 +1,10 @@
 import subprocess
 import sys
+import time
 
 import pytest
 
-from glyphforge import cli
+from glyphforge import cli, resources
 from glyphforge.render import docker, doctor
 
 
@@ -18,6 +19,7 @@ def calls(monkeypatch):
         return subprocess.CompletedProcess(argv, rc, b"", b"")
 
     monkeypatch.setattr(docker.subprocess, "run", fake_run)
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda: 100 * resources.GIB)
     return rec, state
 
 
@@ -60,6 +62,36 @@ def test_probe_parsing(calls, tmp_path, monkeypatch):
     _fake_batch(monkeypatch, tmp_path, oks("lgrmath.sty") + "GF:missing:lgrmath.sty\n")
     probe = {c.name: c for c in doctor.run_checks(cache=tmp_path)}["probe"]
     assert probe.ok and "lgrmath" in probe.detail
+
+
+def test_low_memory_skips_probe(calls, tmp_path, monkeypatch):
+    def no_batch(*a, **k):
+        raise AssertionError("probe must not run")
+
+    monkeypatch.setattr(docker, "_run_batch", no_batch)
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda: resources.RAM_FLOOR_BYTES + 1)
+    t = time.monotonic()
+    res = {c.name: c for c in doctor.run_checks(cache=tmp_path)}
+    assert time.monotonic() - t < 2
+    assert not res["probe"].ok and res["probe"].detail.startswith("skipped: memory")
+    assert not res["memory"].ok
+
+
+def test_unmeasurable_memory_is_a_fail_line(calls, tmp_path, monkeypatch):
+    def boom():
+        raise resources.GuardUnmeasurable("x")
+
+    monkeypatch.setattr(resources, "mem_available_bytes", boom)
+    res = {c.name: c for c in doctor.run_checks(cache=tmp_path)}
+    assert not res["memory"].ok and "cannot measure" in res["memory"].detail
+    assert not res["probe"].ok
+
+
+def test_enough_memory_probe_and_memory_ok(calls, tmp_path, monkeypatch):
+    _fake_batch(monkeypatch, tmp_path, "".join(f"GF:ok:{f}\n" for f in (*doctor.PROBE_FILES, "mathscr")))
+    res = {c.name: c for c in doctor.run_checks(cache=tmp_path)}
+    assert res["probe"].ok and res["memory"].ok
+    assert [c.name for c in doctor.run_checks(cache=tmp_path)] == ["docker", "image", "probe", "memory", "cache"]
 
 
 def test_cache_not_writable(calls, tmp_path):
