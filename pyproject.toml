@@ -1,0 +1,57 @@
+[project]
+name = "glyphforge"
+version = "0.1.0"
+description = "Synthetic LaTeX formula generator with provably correct, visually distinguishable labels for math OCR training"
+requires-python = ">=3.12,<3.13"
+authors = [{name = "ogaude", email = "ogaude.code@proton.me"}]
+dependencies = [
+    "pypdfium2>=5.14,<6",
+    "numpy>=2.5,<3",
+    "scipy>=1.18,<2",
+    "pillow>=12.3,<13",
+]
+
+[project.optional-dependencies]
+cli = ["typer>=0.27,<1"]
+
+[project.scripts]
+glyphforge = "glyphforge.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+    "hypothesis>=6.170",
+    "ruff>=0.17",
+    "mypy>=2.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/glyphforge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not docker'"
+markers = ["docker: needs Docker and the digest-pinned texlive/texlive image"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+
+[tool.ruff.lint.per-file-ignores]
+"src/glyphforge/canon/tokens.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/canon/safety.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/canon/normalize.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/canon/label.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/pixels.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/render/raster.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/render/docker.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/render/cache.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+"src/glyphforge/render/batch.py" = ["E", "W", "F401", "F403", "F405", "F811", "F841"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true

@@ -1,0 +1,2 @@
+src/glyphforge/render/preamble.tex -text
+tests/fixtures/** -text
