@@ -90,5 +90,6 @@ def test_survival():
 
 
 def test_vocab():
-    assert REASONS[-2:] == ("ambiguous-identical", "pair_partner_dropped") and "rendered" not in REASONS
+    assert REASONS[-3:] == ("ambiguous-identical", "pair_partner_dropped", "slot_partner_dropped") and "rendered" not in REASONS
+    assert survival([("c", "s", "slot_partner_dropped", ())], [("c", "s")])["cells"]["c|s"]["dropped"] == {"slot_partner_dropped": 1}
     assert FLAGS == ("ambiguous", "identical-after-policy", "near-identical")
