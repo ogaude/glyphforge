@@ -1,0 +1,49 @@
+# Hand-written for GlyphForge and dedicated to the public domain (CC0-1.0). Not taken from any paper.
+licence: CC0-1.0
+domain: math
+version: "1"
+rules:
+  start:
+    - {rhs: '$S = $expr', weight: 4}
+    - {rhs: '$S = $term + $term', weight: 2}
+    - {rhs: '$expr = $S', weight: 2}
+    - {rhs: '$S \leq $expr', weight: 1}
+    - {rhs: '\frac{d $S}{d t} = $expr', weight: 1}
+  start_multiline:
+    - {rhs: '$S &= $expr \\ &= $expr', weight: 3}
+    - {rhs: '$expr &= $S \\ &= $expr \\ &= $expr', weight: 2}
+    - {rhs: '$S &= $term + $term \\ &\leq $expr', weight: 2}
+  var:
+    - {rhs: 'x', weight: 4}
+    - {rhs: 'y', weight: 3}
+    - {rhs: 'z', weight: 3}
+    - {rhs: 't', weight: 2}
+    - {rhs: 'n', weight: 2}
+    - {rhs: '\alpha', weight: 1}
+    - {rhs: '\theta', weight: 1}
+    - {rhs: '\lambda', weight: 1}
+  expr:
+    - {rhs: '$term + $term', weight: 3}
+    - {rhs: '$term - $term', weight: 2}
+    - {rhs: '$term \cdot $term', weight: 2}
+    - {rhs: '\frac{$term}{$term}', weight: 2}
+    - {rhs: '\sqrt{$term + $term}', weight: 1}
+    - {rhs: '\sum_{k=1}^{n} $term', weight: 1}
+    - {rhs: '\int_{0}^{1} $term \, d $var', weight: 1}
+    - {rhs: '\lim_{x \to 0} $term', weight: 1}
+    - {rhs: '\begin{pmatrix} $var & $var \end{pmatrix}', weight: 1}
+    - {rhs: '\{ $var \in \mathbb{R} : $term > 0 \}', weight: 1}
+    - {rhs: 'x + 1', weight: 2}
+    - {rhs: '2 \pi r', weight: 1}
+  term:
+    - {rhs: '$var', weight: 3}
+    - {rhs: '$var^{2}', weight: 2}
+    - {rhs: '$var_{i}', weight: 2}
+    - {rhs: '2 $var', weight: 2}
+    - {rhs: '$var $var', weight: 1}
+    - {rhs: '\sin $var', weight: 1}
+    - {rhs: '\log $var', weight: 1}
+    - {rhs: 'f($var)', weight: 2}
+    - {rhs: '\left( $var + 1 \right)', weight: 1}
+    - {rhs: '\frac{1}{2}', weight: 1}
+    - {rhs: '1', weight: 1}

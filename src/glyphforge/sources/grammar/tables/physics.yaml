@@ -1,0 +1,46 @@
+# Hand-written for GlyphForge and dedicated to the public domain (CC0-1.0). Not taken from any paper.
+licence: CC0-1.0
+domain: physics
+version: "1"
+rules:
+  start:
+    - {rhs: '$S = $expr', weight: 3}
+    - {rhs: 'H = \frac{p^{2}}{2 m} + $S', weight: 1}
+    - {rhs: 'i \hbar \frac{\partial \psi}{\partial t} = $S \psi', weight: 1}
+    - {rhs: '\nabla \cdot $S = \frac{\rho}{\epsilon_{0}}', weight: 1}
+    - {rhs: '\langle $S \rangle = $expr', weight: 1}
+  start_multiline:
+    - {rhs: '$S &= $expr \\ &= $expr', weight: 2}
+    - {rhs: '\mathcal{L} &= $expr \\ &= $S + $term', weight: 2}
+    - {rhs: '$expr &= $S \\ &= $expr \\ &= $term', weight: 2}
+  var:
+    - {rhs: 'E', weight: 3}
+    - {rhs: 'p', weight: 3}
+    - {rhs: 'q', weight: 2}
+    - {rhs: 'x', weight: 3}
+    - {rhs: 't', weight: 2}
+    - {rhs: 'r', weight: 2}
+    - {rhs: '\phi', weight: 1}
+    - {rhs: '\omega', weight: 1}
+  expr:
+    - {rhs: '$term + $term', weight: 3}
+    - {rhs: '$term - $term', weight: 2}
+    - {rhs: '\frac{$term}{$term}', weight: 2}
+    - {rhs: '\frac{p^{2}}{2 m}', weight: 2}
+    - {rhs: '\langle \psi | $term | \psi \rangle', weight: 1}
+    - {rhs: '\nabla \times $var', weight: 1}
+    - {rhs: '\sum_{i} $var_{i}', weight: 1}
+    - {rhs: '\int d^{3} x \, $term', weight: 1}
+    - {rhs: '\exp \left( - \frac{$var}{k T} \right)', weight: 1}
+    - {rhs: '\hbar \omega', weight: 2}
+    - {rhs: 'q E', weight: 1}
+  term:
+    - {rhs: '$var', weight: 3}
+    - {rhs: '$var^{2}', weight: 2}
+    - {rhs: '$var_{0}', weight: 1}
+    - {rhs: '\hbar $var', weight: 1}
+    - {rhs: '\partial_{\mu} $var', weight: 1}
+    - {rhs: '$var^{\mu \nu}', weight: 1}
+    - {rhs: 'T_{\mu \nu}', weight: 1}
+    - {rhs: 'E', weight: 1}
+    - {rhs: '1', weight: 1}
