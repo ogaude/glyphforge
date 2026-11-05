@@ -154,7 +154,8 @@ def render_many(
     wrapper="display" (default) goes through wrap(), which strips labels and re-wraps bodies in aligned/\\[ \\]. wrapper="env"
     typesets each item verbatim and accepts only a starred equation/align/gather environment (anything else is "rejected"):
     the corpus canonicalizer uses it to render the paper's own environment and compare it with the canonical label rendered
-    through the default wrapper. Cache keys carry the wrapper, so bitmaps never cross wrappers.
+    through the default wrapper. wrapper="line" typesets numbered displays ("body\\n\\tag{n}") and text lines with $..$ inline
+    math. Cache keys carry the wrapper, so bitmaps never cross wrappers.
 
     style=None (or a single Style) applies to every item; a sequence gives one Style per item. Items are batched per preamble
     key (font package, class size, extras), and cache keys carry a non-default style, so bitmaps never cross styles.
