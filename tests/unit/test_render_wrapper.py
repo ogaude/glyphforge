@@ -23,7 +23,7 @@ def test_env_cache_key_differs():
 
 def test_versions():
     assert safety.WRAP_VERSION == "1"
-    assert safety.FILTER_VERSION == "3"
+    assert safety.FILTER_VERSION == "4"
 
 
 def test_batch_source_env_is_verbatim():

@@ -10,7 +10,7 @@ from glyphforge.render import cache, docker
 from glyphforge.render.style import Style
 
 GOLDEN = pathlib.Path(__file__).parent.parent / "fixtures" / "render_golden.jsonl"
-DEFAULT_KEY = "54b90ab633c451af08bb0e225e835dbc3f18dbdc14c25a8eb858c0d6560742e0"
+DEFAULT_KEY = "5c4f6d7a41407bbe425fcf52188599432f8bc89dba4770fb167576600d1640cc"  # FILTER_VERSION 4
 # glyphfix-math key (filter 2); diverges until the CR-01..03 fix lands upstream
 GM_DEFAULT_KEY = "313423b35e9130aa86d42a8ee5488095070843cc3cde7e6b0f938a674aaf7c24"
 
@@ -40,7 +40,7 @@ def test_config_and_hash():
     c = cache.render_config()
     assert set(c) == {"image", "preamble_sha256", "wrap_version", "filter_version", "dpi", "ink_threshold", "tolerance"}
     assert c["preamble_sha256"] == docker.PREAMBLE_SHA256
-    assert c["filter_version"] == safety.FILTER_VERSION == "3"
+    assert c["filter_version"] == safety.FILTER_VERSION == "4"
     assert c["wrap_version"] == "1" and c["dpi"] == 300 and c["image"] == docker.IMAGE
     assert set(c["tolerance"]) == {"version", "shape_px", "pixel_delta", "max_component_px", "max_diff_px"}
     assert "upgreek" in raw.decode() and r"\begin{document}" not in raw.decode()
@@ -53,7 +53,7 @@ def test_cache_key_stability(monkeypatch):
     for mod, name, value in [
         (safety, "WRAP_VERSION", "2"),
         (docker, "PREAMBLE_SHA256", "0" * 64),
-        (safety, "FILTER_VERSION", "4"),
+        (safety, "FILTER_VERSION", "5"),
         (docker, "IMAGE_DIGEST", "sha256:" + "0" * 64),
     ]:
         monkeypatch.setattr(mod, name, value)

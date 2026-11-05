@@ -109,5 +109,5 @@ def test_filter_frozen():
 
 
 def test_versions_frozen():
-    assert (render.WRAP_VERSION, render.FILTER_VERSION, NORMALIZE_RULES_VERSION, CANON_RULES_VERSION) == ("1", "3", "3", "2")
-    assert canon.canon_versions() == {"canon_rules_version": "2", "normalize_rules_version": "3", "wrap_version": "1", "filter_version": "3"}
+    assert (render.WRAP_VERSION, render.FILTER_VERSION, NORMALIZE_RULES_VERSION, CANON_RULES_VERSION) == ("1", "4", "3", "2")
+    assert canon.canon_versions() == {"canon_rules_version": "2", "normalize_rules_version": "3", "wrap_version": "1", "filter_version": "4"}

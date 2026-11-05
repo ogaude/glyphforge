@@ -12,11 +12,13 @@ WRAP_VERSION = "1"
 # _DOCUMENT_RE or _CONTROL_SYMBOL_RE change, when an existing wrapper's acceptance or body changes, and when the "line" rules
 # change after release. It is part of cache_key(), so a bump invalidates every cached render once.
 # FILTER_VERSION 3 diverges from glyphfix-math (filter 2) on purpose: CR-01..03 security fix, to be ported upstream.
-FILTER_VERSION = "3"
+# 4: the GlyphForge-only "line" wrapper picks the numbered branch by its trailing \tag line before looking for "$" (WR-07).
+FILTER_VERSION = "4"
 
 
 # "display" (default): wrap() re-wraps the body in \[ \]. "env": a starred equation/align/gather environment is typeset verbatim.
-# "line": a numbered display ("body\n\tag{n}") or one text line with $..$ inline math, labels in LightOnOCR's native output style.
+# "line": a numbered display ("body\n\tag{n}", decided by that trailing line, so the body may hold \text{..$i$..}) or one text line with
+# $..$ inline math, labels in LightOnOCR's native output style.
 WRAPPERS = ("display", "env", "line")
 _TAG_RE = re.compile(r"^(?P<body>.*\S)\n\\tag\{(?P<n>[1-9][0-9]?)\}$", re.DOTALL)
 _TAG_TOKEN_RE = re.compile(r"\\tag(?![A-Za-z])")
@@ -133,12 +135,9 @@ def render_body(latex: str, wrapper: str = "display") -> str:
     """Exact text compiled for one batch item."""
     if wrapper == "line":
         s = latex.strip()
-        if "$" in s:
-            return s
-        m = _TAG_RE.match(s)
-        if not m:
-            return wrap(s)
-        return wrap(m["body"]).removesuffix("\n\\]") + "\n\\tag{" + m["n"] + "}\n\\]"
+        if m := _TAG_RE.match(s):
+            return wrap(m["body"]).removesuffix("\n\\]") + "\n\\tag{" + m["n"] + "}\n\\]"
+        return s if "$" in s else wrap(s)
     return wrap(latex) if wrapper == "display" else latex.strip()
 
 
@@ -147,7 +146,8 @@ def _check_line(latex: str) -> str | None:
     if reason:
         return reason
     s = latex.strip()
-    if "$" in s:
+    m = _TAG_RE.match(s)
+    if m is None and "$" in s:
         parts = s.split("$")
         if "$$" in s:
             return "display math escape $$"
@@ -164,7 +164,6 @@ def _check_line(latex: str) -> str | None:
             elif reason := check_render(part, "display"):
                 return f"inline math: {reason}"
         return None
-    m = _TAG_RE.match(s)
     body = m["body"] if m else s
     if _TAG_TOKEN_RE.search(body):
         return "tag must be on its own trailing line"

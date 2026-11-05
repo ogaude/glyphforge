@@ -49,6 +49,11 @@ class TestDocker:
         a, b = _render(["where $x'$ ,", "where $xl$ ,"], tmp_path)
         assert a.bitmap_sha256 != b.bitmap_sha256
 
+    def test_numbered_with_text_math(self, tmp_path):
+        """WR-07: a numbered body with \\text{..$i$..} renders (it was rejected as inline text before)."""
+        tagged, plain = _render(["x = 0 \\text{ for all $i$}\n\\tag{3}", "x = 0 \\text{ for all }\n\\tag{3}"], tmp_path)
+        assert tagged.bitmap_sha256 != plain.bitmap_sha256
+
     def test_multiline_numbered(self, tmp_path):
         _render(["a&=b\\\\c&=d\n\\tag{2}"], tmp_path)
 
