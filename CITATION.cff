@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use GlyphForge, please cite it as below."
+type: software
+title: "GlyphForge: a synthetic LaTeX formula generator with verified labels"
+version: 0.1.0
+license: Apache-2.0
+authors:
+  - alias: ogaude
+    email: ogaude.code@proton.me
+repository-code: https://github.com/ogaude/glyphforge
+url: https://github.com/ogaude/glyphforge
+keywords:
+  - latex
+  - ocr
+  - synthetic-data
+  - math
+  - formula-recognition
+references:
+  - type: data
+    title: "glyphforge-equations: synthetic LaTeX formula images with glyph-level minimal pairs"
+    authors:
+      - alias: ogaude
+    url: https://huggingface.co/datasets/ogaude/glyphforge-equations
