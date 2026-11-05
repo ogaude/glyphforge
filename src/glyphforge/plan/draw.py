@@ -241,13 +241,14 @@ def draw_slot(slot: Slot, attempt: int, ctx: DrawContext) -> Draft | None:
     f, chosen, v, (t, h, t_alts, h_alts) = got
     n_sites = int(dict(v.meta).get("n_sites", 1))
     own = chosen[len(chosen) - n_sites :]
-    n_tokens, controls = count(t), []
+    n_tokens, controls, used = count(t), [], {t, h}  # a control repeating the pair or an earlier control would be a duplicate row
     for j in range(slot.n_extra):
         rng = slot_rng(ctx.seed, f"ctrl{j}", i, attempt)
-        c = _pair(slot, ctx, look, rng, rng, 1, lambda g, label: g.latex != f.latex and count(label) // 16 == n_tokens // 16)
+        c = _pair(slot, ctx, look, rng, rng, 1, lambda g, label: g.latex != f.latex and label not in used and count(label) // 16 == n_tokens // 16)
         if c is None:
             return None
         cf, csites, cv, (_, ch, _, c_alts) = c
+        used.add(ch)
         cf = _own(cf, slot)
         controls.append(Control(j, cf, ch, c_alts, cv.control_glyph, count(ch), _level(cf.latex, csites), cf.paper_id))
     return Draft(

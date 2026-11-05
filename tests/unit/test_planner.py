@@ -263,6 +263,16 @@ def test_extra_controls_match_style_bucket_and_differ():
         assert c.site_level == "base"
 
 
+def test_extra_controls_are_distinct_rows():
+    """WR-01: no control repeats an earlier control or the pair's hard negative (the builtin seed made 144/199 duplicates)."""
+    ctx = _ctx(ListSource(builtin_seed()))
+    drafts = [d for s in _slots([UPS, PRIME], 60, hard_negative_ratio=3)[0] if (d := draw_slot(s, 0, ctx))]
+    assert drafts
+    for d in drafts:
+        labels = [d.target, d.hard_negative, *(c.label for c in d.controls)]
+        assert len(d.controls) == 2 and len(set(labels)) == len(labels)
+
+
 def test_control_label_is_the_hard_negative_side():
     d = draw_slot(_slot(0, n_extra=1), 0, _ctx(VS))
     c = d.controls[0]
