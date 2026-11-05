@@ -99,7 +99,7 @@ def test_exact_quotas_and_run_json(tmp_path, fake):
     assert len(fake) == 1 and fake[0][0] == "display" and len(set(fake[0][1])) == len(fake[0][1])
     for f in ("trainset.jsonl", "export_manifest.json"):
         assert (tmp_path / "out" / "glyphfix" / f).is_file()
-    with_counter, *_ = _go(tmp_path, recipe, "counted", token_counter=len)
+    with_counter, *_ = _go(tmp_path, recipe, "counted", token_counter=len, base_dir=bl)
     counted_info, counted, _ = read_store(tmp_path / "counted")
     assert counted_info["token_estimator"] == {"custom": "len"} and with_counter.rows_kept > 0
     assert all(s["n_tokens"] == len(s["label"]) for s in counted)  # each row counts its own label, hard negatives included

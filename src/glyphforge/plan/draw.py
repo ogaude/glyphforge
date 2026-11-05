@@ -10,6 +10,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from glyphforge.canon import canonical
 from glyphforge.canon.safety import check_render
 from glyphforge.plan.bounds import bounds_problem, est_tokens, site_level
 from glyphforge.plan.compose import choose_sites, compose
@@ -18,6 +19,7 @@ from glyphforge.rng import pick, slot_rng, slot_seed
 
 if TYPE_CHECKING:
     from glyphforge.errors.api import ErrorClass, Site, Variant
+    from glyphforge.export.leak import Blocklist
     from glyphforge.recipe.schema import BoundsSpec, CompositionSpec, Recipe, StructureSpec, StyleSpec
     from glyphforge.render.style import Style
     from glyphforge.sources.base import DrawSource, Formula
@@ -102,6 +104,7 @@ class DrawContext:
     site_levels: Mapping[str, float]
     bounds: BoundsSpec
     counter: Callable[[str], int] | None
+    blocklist: Blocklist | None = None
 
 
 def plan_slots(
@@ -221,7 +224,11 @@ def _pair(
         chosen = choose_sites(sites, max_sites, src_rng)
         v = compose(f.latex, cls, chosen, site_rng)
         labels = _labels(v, look)
-        if not any(_problem(x, look, ctx) for x in labels[:2]) and accept(f, labels[1]):
+        if (
+            not any(_problem(x, look, ctx) for x in labels[:2])
+            and not (ctx.blocklist and (ctx.blocklist.match(labels[0], canonical(f.latex), f.paper_id) or ctx.blocklist.match(labels[1], None, None)))
+            and accept(f, labels[1])
+        ):
             return f, chosen, v, labels
     return None
 
@@ -273,6 +280,7 @@ def build_context(
     recipe: Recipe, classes: Sequence[ErrorClass], base_dir: Path, *, recipe_hash: str, counter: Callable[[str], int] | None = None
 ) -> tuple[DrawContext, list[Slot], dict[str, int]]:
     """Open the recipe's sources (a mix opens both parts in order) and plan the slots."""
+    from glyphforge.export.leak import load_blocklist
     from glyphforge.recipe.load import effective_styles  # lazy: keeps plan/ free of pydantic at import time
     from glyphforge.sources.listing import load_source
 
@@ -282,6 +290,7 @@ def build_context(
     ctx = DrawContext(
         recipe.seed, tuple(load_source(p, base_dir) for p in parts), kinds, tuple((p.max_sites or 2) if p.kind == "mutation" else 1 for p in parts),
         effective_styles(recipe), recipe.structure, recipe.typography.site_levels, recipe.bounds, counter,
+        load_blocklist(recipe.export.blocklist, base_dir) if recipe.export.blocklist else None,
     )  # fmt: skip
     slots, quotas = plan_slots(
         classes, recipe.composition, source_kinds=kinds, first_share=spec.shares[0] if spec.kind == "mix" else 1.0, recipe_hash=recipe_hash
