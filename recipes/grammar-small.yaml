@@ -1,0 +1,7 @@
+# Grammar-only example: runs in minutes and needs no downloaded files.
+schema_version: 3
+seed: 1
+source:
+  kind: grammar
+composition:
+  total: 40
