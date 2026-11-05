@@ -9,6 +9,10 @@ from glyphforge.render import docker
 
 _DEFAULT_PKGS = r"\usepackage{amsmath,amssymb,amsfonts,mathtools,bm,upgreek,mathrsfs}"
 _GEOMETRY = r"\usepackage[paperwidth=40cm,paperheight=20cm,margin=1cm]{geometry}"
+# A set text column replaces the margin geometry with one consistent line (a second \geometry{} after margin=1cm is ignored), and
+# disables hyphenation: a narrow column must never add a visible "-" that the single-line label lacks.
+_COLUMN = r"\usepackage[paperwidth=40cm,paperheight=20cm,left=1cm,top=1cm,textwidth={w:g}cm,textheight=17cm]{{geometry}}"
+_NO_HYPHENATION = r"\hyphenpenalty=10000 \exhyphenpenalty=10000"
 
 # Package load orders verified to compile in the pinned image; never append fonts to the default line outside these recipes.
 FONT_BLOCKS: dict[str, tuple[str, ...]] = {
@@ -26,7 +30,7 @@ FONT_BLOCKS: dict[str, tuple[str, ...]] = {
 
 @dataclass(frozen=True)
 class Style:
-    """Font package, class size (8..12 pt) and extra preamble lines.
+    """Font package, class size (8..12 pt), extra preamble lines and an optional text column width in cm.
 
     ``extra`` is trusted configuration (e.g. a package defining a missing glyph); it must never come from equation text.
     """
@@ -34,28 +38,33 @@ class Style:
     font: str = "cm"
     size: int = 12
     extra: tuple[str, ...] = ()
+    column_cm: float | None = None
 
     def __post_init__(self) -> None:
         if self.font not in FONT_BLOCKS:
             raise ValueError(f"unknown font {self.font!r}; expected one of {tuple(FONT_BLOCKS)}")
         if not 8 <= self.size <= 12:
             raise ValueError(f"size must be in 8..12, got {self.size}")
+        if self.column_cm is not None and not 0 < self.column_cm <= 38:
+            raise ValueError(f"column_cm must be in (0, 38], got {self.column_cm}")
 
     @property
     def is_default(self) -> bool:
-        return self.font == "cm" and self.size == 12 and not self.extra
+        return self.font == "cm" and self.size == 12 and not self.extra and self.column_cm is None
 
     @property
     def preamble(self) -> str:
         if self.is_default:
             return docker.PREAMBLE
         cls = "extarticle" if self.size < 10 else "article"
-        lines = [rf"\documentclass[{self.size}pt]{{{cls}}}", _GEOMETRY, *FONT_BLOCKS[self.font], *self.extra, r"\pagestyle{empty}", r"\setlength{\parindent}{0pt}"]
+        col = () if self.column_cm is None else (_NO_HYPHENATION,)
+        geometry = _GEOMETRY if self.column_cm is None else _COLUMN.format(w=self.column_cm)
+        lines = [rf"\documentclass[{self.size}pt]{{{cls}}}", geometry, *FONT_BLOCKS[self.font], *self.extra, r"\pagestyle{empty}", r"\setlength{\parindent}{0pt}", *col]
         return "".join(line + "\n" for line in lines)
 
     @property
     def preamble_sha256(self) -> str:
-        """Preamble/grouping key: font package + class size + extras."""
+        """Preamble/grouping key: font package + class size + extras + column."""
         return docker.PREAMBLE_SHA256 if self.is_default else hashlib.sha256(self.preamble.encode("utf-8")).hexdigest()
 
 

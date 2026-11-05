@@ -10,7 +10,7 @@ _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 HOSTILE = _mod.HOSTILE
 
-COLUMN = Style("cm", 10, (r"\geometry{left=1cm,top=1cm,text={12cm,17cm}}",))
+COLUMN = Style("cm", 10, column_cm=12)
 
 
 @pytest.mark.parametrize("h", HOSTILE)
@@ -54,4 +54,17 @@ class TestDocker:
 
     def test_fonts_at_8pt(self, tmp_path):
         for font in FONT_BLOCKS:
-            _render(["where $\\nu$ ,"], tmp_path, Style(font, 8, COLUMN.extra))
+            _render(["where $\\nu$ ,"], tmp_path, Style(font, 8, column_cm=COLUMN.column_cm))
+
+    def test_column_sets_text_width(self, tmp_path):
+        """CR-01: the tag sits at the right edge of the text column, so a wider column gives a wider crop."""
+        (narrow,) = _render(["x\n\\tag{1}"], tmp_path, Style("cm", 10, column_cm=8.5))
+        (wide,) = _render(["x\n\\tag{1}"], tmp_path, Style("cm", 10, column_cm=15))
+        assert wide.shape[1] - narrow.shape[1] > 300  # centred x to right-edge tag spans half the 6.5 cm change: about 384 px at 300 DPI
+
+    def test_no_hyphenation_in_narrow_column(self, tmp_path):
+        """WR-02: with hyphenation on, this label wraps to two lines at 5 cm (height 89 px, probed); now it stays one line."""
+        label = "where $x$ satisfies the characteristically"
+        (narrow,) = _render([label], tmp_path, Style("cm", 10, column_cm=5))
+        (wide,) = _render([label], tmp_path, Style("cm", 10, column_cm=30))
+        assert narrow.shape[0] == wide.shape[0]

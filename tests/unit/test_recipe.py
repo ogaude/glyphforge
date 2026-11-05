@@ -233,7 +233,6 @@ def test_effective_styles_key_order_invariant():
 def test_to_style_column():
     spec = StyleSpec(name="x", font="cm", size=12)
     st = to_style(spec, column_cm=12)
-    assert st.extra[-1] == r"\geometry{left=1cm,top=1cm,text={12cm,17cm}}" and not st.is_default
-    assert st.preamble_sha256 != to_style(spec).preamble_sha256
-    assert to_style(spec, column_cm=8.5).extra[-1] == r"\geometry{left=1cm,top=1cm,text={8.5cm,17cm}}"
+    assert st.column_cm == 12 and st.extra == () and not st.is_default
+    assert st.preamble_sha256 != to_style(spec).preamble_sha256 != to_style(spec, column_cm=8.5).preamble_sha256
     assert to_style(spec, column_cm=None) == to_style(spec)

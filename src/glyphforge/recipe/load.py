@@ -59,12 +59,9 @@ def effective_styles(recipe: Recipe) -> tuple[tuple[StyleSpec, float], ...]:
 def to_style(spec: StyleSpec, extra_packages: Iterable[str] = (), column_cm: float | None = None) -> Style:
     """Map a StyleSpec (plus class-declared packages) to a Style; preamble lines are built here, never taken from recipe text.
 
-    ``column_cm`` is validated recipe config (a float), appended as a text-width geometry override.
+    ``column_cm`` is validated recipe config (a float); Style builds the text-width geometry from it.
     """
     pkgs = sorted(set(spec.packages) | set(extra_packages))
     if bad := [p for p in pkgs if not re.fullmatch(PACKAGE_RE, p)]:
         raise ValueError(f"invalid package names: {bad}")
-    extra = tuple(rf"\usepackage{{{p}}}" for p in pkgs)
-    if column_cm is not None:
-        extra += (rf"\geometry{{left=1cm,top=1cm,text={{{column_cm:g}cm,17cm}}}}",)
-    return Style(spec.font, spec.size, extra)
+    return Style(spec.font, spec.size, tuple(rf"\usepackage{{{p}}}" for p in pkgs), column_cm)
