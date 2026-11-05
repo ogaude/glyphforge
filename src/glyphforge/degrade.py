@@ -47,7 +47,7 @@ def apply_ops(png: bytes, ops: Sequence[dict]) -> bytes:
     """Apply ``ops`` in list order and re-encode deterministically; an empty list returns ``png`` unchanged."""
     if not ops:
         return png
-    img = Image.open(io.BytesIO(png))
+    img: Image.Image = Image.open(io.BytesIO(png))
     if img.mode != "L":
         raise ValueError(f"expected a grayscale PNG, got mode {img.mode}")
     img.load()
@@ -56,7 +56,7 @@ def apply_ops(png: bytes, ops: Sequence[dict]) -> bytes:
             case "contrast":
                 img = Image.fromarray(np.rint(255 - (255 - np.asarray(img, dtype=np.float64)) * op["c"]).astype(np.uint8))
             case "rotate":
-                img = img.rotate(op["deg"], resample=Image.BICUBIC, expand=True, fillcolor=255)
+                img = img.rotate(op["deg"], resample=Image.BICUBIC, expand=True, fillcolor=255)  # type: ignore[attr-defined]
             case "blur":
                 img = img.filter(ImageFilter.GaussianBlur(op["sigma"]))
             case "noise":

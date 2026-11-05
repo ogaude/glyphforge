@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import cast
 
 from pydantic import ValidationError
 
@@ -37,13 +38,14 @@ def validate_recipe(path: Path) -> dict:
         pins.append(("blocklist", recipe.export.blocklist.path, recipe.export.blocklist.sha256))
     results, problems = [], []
     for kind, rel, pinned in pins:
-        file = resolve_inside(base_dir, rel, ".jsonl")
+        file = resolve_inside(base_dir, cast("str", rel), ".jsonl")
         actual = file_sha256(file) if file.is_file() else None
         if actual is None:
             problems.append(f"{rel}: file not found")
         elif actual != pinned:
             problems.append(f"{kind} sha256 mismatch: recipe pins {pinned}, file is {actual}")
         elif kind == "blocklist":
+            assert recipe.export.blocklist is not None  # the blocklist pin exists only when the recipe sets one
             load_blocklist(recipe.export.blocklist, base_dir)  # malformed lines raise ValueError
         results.append({"kind": kind, "path": rel, "sha256": pinned, "ok": actual == pinned})
     return {

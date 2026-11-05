@@ -10,6 +10,7 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import PIL
@@ -139,7 +140,10 @@ def _round(
             )
             for (latex, style), r in zip(keys, rendered, strict=True):
                 results.setdefault((w, style), {})[latex] = r
-    kept, ledger, entries, not_rendered = {}, [], [], 0
+    kept: dict[int, list[dict]] = {}
+    ledger: list[dict] = []
+    entries: list[tuple] = []
+    not_rendered = 0
     pol, pad = recipe.qc.ambiguity, recipe.render.pad_px
     for d in drafts:
         res = results[d.wrapper, d.style]
@@ -151,7 +155,8 @@ def _round(
             (c, "hard_negative", c.label, verdict(res[c.label], [res[a] for a in c.alternates], cache, policy=pol)) for c in d.controls
         ]
         not_rendered += sum(p[3].alternates_not_rendered for p in parts)
-        ok, rows = all(p[3].keep for p in parts), []
+        ok = all(p[3].keep for p in parts)
+        rows: list[dict] = []
         for c, role, label, v in parts:
             v = v if ok or not v.keep else replace(v, keep=False, reason="slot_partner_dropped")
             row = _row(d, c, role, label, res[label], v, cache, rh, pad, out_dir)
@@ -197,6 +202,7 @@ def plan_run(
 
     t0 = time.perf_counter()
     recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter, progress)
+    assert isinstance(recipe, Recipe)  # _prepare always returns a loaded recipe
     table: dict[tuple[str, str], list[int]] = {}
     jobs = undrawable = 0
     for lo in range(0, len(slots), SLOTS_PER_RENDER):
@@ -247,9 +253,12 @@ def run(
     if (out_dir / "run.json").exists():
         raise FileExistsError(f"{out_dir / 'run.json'} already exists")
     recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas = _prepare(recipe, base_dir, token_counter, progress)
+    assert isinstance(recipe, Recipe) and base_dir is not None  # _prepare always returns a loaded recipe and a resolved base directory
 
     kept: dict[int, list[dict]] = {}
-    ledger, entries, no_draw, not_rendered, rounds = [], [], 0, 0, 0
+    ledger: list[dict] = []
+    entries: list[tuple] = []
+    no_draw, not_rendered, rounds = 0, 0, 0
     # Everything the rounds depend on besides the recipe: a resume under a different generator, rules, renderer, token counter or
     # source file content is refused instead of mixing rounds.
     pins = [
@@ -272,7 +281,10 @@ def run(
     for attempt in range(len(done), recipe.composition.attempt_cap):
         if not (todo := [s for s in slots if s.index not in kept]):
             break
-        got, led, ent, nd, nr = {}, [], [], 0, 0
+        got: dict[int, list[dict]] = {}
+        led: list[dict] = []
+        ent: list[tuple] = []
+        nd, nr = 0, 0
         for lo in range(0, len(todo), SLOTS_PER_RENDER):
             g, ld, en, n1, n2 = _round(todo[lo : lo + SLOTS_PER_RENDER], attempt, ctx, recipe, rh, cache, max_parallel, batch_size, out_dir)
             got, led, ent, nd, nr = got | g, led + ld, ent + en, nd + n1, nr + n2
@@ -290,7 +302,7 @@ def run(
     by_reason = Counter(r["reason"] for r in ledger)
     spec = recipe.source
     mutation = [p for p in (spec.parts if spec.kind == "mix" else (spec,)) if p.kind == "mutation"]
-    meta = (base_dir / mutation[0].path).with_suffix(".meta.json") if mutation else None
+    meta = (base_dir / cast("str", mutation[0].path)).with_suffix(".meta.json") if mutation else None
     meta_bytes = meta.read_bytes() if meta and meta.is_file() else None  # the sidecar is not pinned by the recipe: record its sha256
     corpus = json.loads(meta_bytes).get("reference_crops") if meta_bytes else None
     balance = balance_report(samples)
@@ -308,7 +320,7 @@ def run(
             p | ({"rejected": dict(sorted(src.rejected.items()))} if k == "mutation" else {})
             for p, k, src in zip(pins, ctx.source_kinds, ctx.sources, strict=True)
         ],
-        "mix_shares": list(spec.shares) if spec.kind == "mix" else [1.0],
+        "mix_shares": list(cast("tuple[float, float]", spec.shares)) if spec.kind == "mix" else [1.0],
         "scale": scale_report(samples, corpus=corpus), "balance": balance,
         "corpus_meta_sha256": hashlib.sha256(meta_bytes).hexdigest() if meta_bytes else None,
         "attempts": {"cap": recipe.composition.attempt_cap, "rounds": rounds},

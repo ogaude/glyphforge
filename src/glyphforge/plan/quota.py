@@ -9,7 +9,7 @@ from math import floor
 SYNTH_BUCKET_ROWS = 30
 
 
-def largest_remainder(total: int, shares: Mapping[str, float]) -> dict[str, int]:
+def largest_remainder(total: int, shares: Mapping[str, float | Fraction]) -> dict[str, int]:
     """Integers summing to ``total``, proportional to ``shares``; remainder ties go to the earlier key."""
     fr = {k: Fraction(str(v)) for k, v in shares.items()}
     norm = sum(fr.values())

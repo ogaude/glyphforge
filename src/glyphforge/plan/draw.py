@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from glyphforge.canon import canonical
 from glyphforge.canon.safety import check_render
@@ -302,14 +302,14 @@ def build_context(
     parts = spec.parts if spec.kind == "mix" else (spec,)
     kinds = tuple({"grammar": "grammar", "mutation": "mutation"}.get(p.kind, "list") for p in parts)
     ctx = DrawContext(
-        recipe.seed, tuple(load_source(p, base_dir) for p in parts), kinds, tuple((p.max_sites or 2) if p.kind == "mutation" else 1 for p in parts),
-        effective_styles(recipe), recipe.structure, recipe.typography.site_levels, recipe.bounds, counter,
+        recipe.seed, cast("tuple[DrawSource, ...]", tuple(load_source(p, base_dir) for p in parts)), kinds, tuple((p.max_sites or 2) if p.kind == "mutation" else 1 for p in parts),
+        effective_styles(recipe), recipe.structure, cast("Mapping[str, float]", recipe.typography.site_levels), recipe.bounds, counter,
         load_blocklist(recipe.export.blocklist, base_dir) if recipe.export.blocklist else None,
     )  # fmt: skip
     slots, quotas = plan_slots(
-        classes, recipe.composition, source_kinds=kinds, first_share=spec.shares[0] if spec.kind == "mix" else 1.0, recipe_hash=recipe_hash
+        classes, recipe.composition, source_kinds=kinds, first_share=cast("tuple[float, float]", spec.shares)[0] if spec.kind == "mix" else 1.0, recipe_hash=recipe_hash
     )
     for k, src in enumerate(ctx.sources):
         if kinds[k] != "grammar":
-            src.index(list({s.error_class.name: s.error_class for s in slots if s.source == k}.values()), progress)
+            src.index(list({s.error_class.name: s.error_class for s in slots if s.source == k}.values()), progress)  # type: ignore[attr-defined]
     return ctx, slots, quotas

@@ -46,4 +46,4 @@ def apply_policy(img: Image.Image, policy: dict = PIXEL_POLICY) -> Image.Image:
     w, h = smart_resize_dims(img.width, img.height, policy["min_px"], policy["max_px"], policy["factor"])
     if (w, h) == img.size:
         return img
-    return img.resize((w, h), Image.BICUBIC)
+    return img.resize((w, h), Image.BICUBIC)  # type: ignore[attr-defined]

@@ -5,14 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from functools import cache
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
 from glyphforge.sources.base import Formula
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION: Final = 3
 PACKAGE_RE = r"^[A-Za-z][A-Za-z0-9-]*$"
 MODULE_RE = r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$"
 

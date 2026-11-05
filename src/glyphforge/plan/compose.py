@@ -10,7 +10,8 @@ from glyphforge.errors.api import ErrorClass, Site, Variant
 
 def choose_sites(sites: Sequence[Site], max_sites: int, rng: random.Random) -> tuple[Site, ...]:
     """1..max_sites pairwise non-overlapping sites, sorted by start descending; consumes only ``rng.random()``."""
-    k, chosen, left = 1 + int(rng.random() * min(max_sites, len(sites))), [], list(sites)
+    k, left = 1 + int(rng.random() * min(max_sites, len(sites))), list(sites)
+    chosen: list[Site] = []
     while left and len(chosen) < k:
         s = left[int(rng.random() * len(left))]
         chosen.append(s)

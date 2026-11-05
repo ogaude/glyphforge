@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 from glyphforge.pixels import PIXEL_POLICY, smart_resize_dims
 from glyphforge.render import RENDER_DPI
@@ -13,8 +14,8 @@ PAGE_DPI = 400
 # (page width px, page height px, paper width pt): 400 DPI renders downscaled to 2048 px on the longest side.
 PAGE_REFS = {"a4": (1448, 2048, 595.28), "letter": (1583, 2048, 612.0)}
 TRAIN_MAX_PX = 401_408  # glyphfix-math training cap; PIXEL_POLICY["max_px"] (602,112) is the inference-side cap
-FLOOR_PX = PIXEL_POLICY["min_px"]
-_CAPS = {"policy": PIXEL_POLICY["max_px"], "train_cap": TRAIN_MAX_PX}
+FLOOR_PX = cast("int", PIXEL_POLICY["min_px"])
+_CAPS: dict[str, int] = {"policy": cast("int", PIXEL_POLICY["max_px"]), "train_cap": TRAIN_MAX_PX}
 
 
 def _quantiles(values: Sequence[float]) -> dict[str, float]:

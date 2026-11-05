@@ -68,7 +68,8 @@ def build_blocklist(glyphfix_root: Path, out: Path) -> dict:
     meta_path = out.with_suffix(".meta.json")
     if out.exists() or meta_path.exists():
         raise FileExistsError(f"{out} already exists")
-    digests, formulas, papers, sets, paper_files = [], set(), set(), {}, {}
+    digests, formulas, papers, paper_files = [], set(), set(), {}
+    sets: dict[str, int] = {}
 
     def read(path: Path) -> Path:
         digests.append(f"{path.relative_to(root)}:{file_sha256(path)}")

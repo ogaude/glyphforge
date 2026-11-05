@@ -62,17 +62,21 @@ def write_parquet(out_dir: Path, rows: Iterable[dict], *, shard_bytes: int, row_
     data = Path(out_dir) / "data"
     data.mkdir(parents=True, exist_ok=True)
     tmp: list[Path] = []
-    writer, batch, size = None, [], 0
+    writer: pq.ParquetWriter | None = None
+    batch: list[dict] = []
+    size = 0
 
     def flush() -> None:
         nonlocal batch
         if batch:
+            assert writer is not None  # a row is batched only after the shard writer opened
             writer.write_table(pa.Table.from_pylist(batch, schema=_SCHEMA))
             batch = []
 
     def close() -> None:
         nonlocal writer, size
         flush()
+        assert writer is not None  # close runs only for an open shard
         writer.close()
         writer, size = None, 0
 
