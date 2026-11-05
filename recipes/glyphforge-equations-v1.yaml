@@ -1,0 +1,20 @@
+# Recipe of the published dataset ogaude/glyphforge-equations on the Hugging Face Hub.
+# The pinned inputs live in the dataset repository; fetch them next to this file first:
+#   hf download ogaude/glyphforge-equations --repo-type dataset --include "source/*" --local-dir recipes
+schema_version: 3
+seed: 1
+source:
+  kind: mix
+  parts:
+    - kind: grammar
+    - kind: mutation
+      path: source/glyphfix-train.jsonl
+      sha256: a8bb33308c7ab2f1a65d50ff615371613e72027595919e80d4386787a6070de8
+  shares: [0.3, 0.7]
+composition:
+  total: 50000
+export:
+  formats: [parquet]
+  blocklist:
+    path: source/blocklist.jsonl
+    sha256: c89bd2694ed7c5535c9ff743b6afbcec6bad5044285bedf3c45aab8f2606d487

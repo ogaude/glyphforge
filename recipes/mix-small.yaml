@@ -1,0 +1,14 @@
+# Grammar + mutation example: runs in minutes.
+# Needs recipes/source/ (see glyphforge-equations-v1.yaml for how to download it).
+schema_version: 3
+seed: 1
+source:
+  kind: mix
+  parts:
+    - kind: grammar
+    - kind: mutation
+      path: source/glyphfix-train.jsonl
+      sha256: a8bb33308c7ab2f1a65d50ff615371613e72027595919e80d4386787a6070de8
+  shares: [0.3, 0.7]
+composition:
+  total: 100

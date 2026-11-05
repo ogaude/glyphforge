@@ -9,3 +9,5 @@ build/
 *.egg-info/
 .hypothesis/
 data/snapshots/
+recipes/source/
+data/runs/
