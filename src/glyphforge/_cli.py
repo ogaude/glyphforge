@@ -146,7 +146,13 @@ def build_app() -> typer.Typer:
         typer.echo(f"recipe_sha256 {p['recipe_sha256']}")
         typer.echo(" ".join(f"{k} {v}" for k, v in p["totals"].items()) + f" attempt_cap {p['attempt_cap']}")
         e = p["estimate"]
-        typer.echo(f"estimate (rough): {e['workers']} worker(s), {e['memory_gb']} GB, ~{e['wall_s']} s; {e['basis']}")
+        typer.echo(f"estimate (rough): {e['workers']} worker(s), {e['memory_gb']} GB, draw {e['draw_s']} s, ~{e['wall_s']} s total; {e['basis']}")
+        if not e["fits_now"]:
+            typer.echo(
+                f"warning: no container fits now: MemAvailable {e['mem_available_gb']} GB, need {e['memory_gb']} GB "
+                f"({e['docker_memory_gb']} GB container + 1.5 GB floor)",
+                err=True,
+            )
 
     @app.command()
     @_exits

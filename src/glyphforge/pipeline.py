@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import time
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -29,8 +30,9 @@ from glyphforge.store import JOURNAL, ImageDir, journal_image, png_bytes, read_j
 
 # Slots drawn and rendered per render_many call within a round: bounds round memory without changing any draw (draws are slot-pure).
 SLOTS_PER_RENDER = 512
-# Rendered formulas per second per worker, rough; Phase 1 bench_render: 22-26/s at batch 100-200, cold cache.
-RENDER_JOBS_PER_S = 20.0
+# Rendered formulas per second per worker, end to end after the draw (render, QC, store, export), rough. Phase 1 bench_render measured 22-26/s for
+# the render alone; the Phase 4 end-to-end run (120 slots, 280 jobs, 1 container, 1:52 total with ~70 s of draw) implies ~280 / 42 s = 7/s overall.
+RENDER_JOBS_PER_S = 7.0
 
 
 def build_registry(recipe: Recipe) -> Registry:
@@ -193,6 +195,7 @@ def plan_run(
     """Docker-free dry run: per class x source quota table, totals, recipe hash and a rough time and memory estimate. Writes nothing."""
     from glyphforge import resources
 
+    t0 = time.perf_counter()
     recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter, progress)
     table: dict[tuple[str, str], list[int]] = {}
     jobs = undrawable = 0
@@ -207,7 +210,8 @@ def plan_run(
         row = table.setdefault((s.error_class.name, ctx.source_kinds[s.source]), [0, 0])
         row[0] += 1
         row[1] += s.n_extra
-    workers = max_parallel or resources.DOCKER_MAX_PARALLEL
+    draw_s = time.perf_counter() - t0
+    workers = resources.docker_parallel_cap(max_parallel=max_parallel)
     return {
         "recipe_sha256": rh,
         "quotas": [
@@ -216,10 +220,12 @@ def plan_run(
         "attempt_cap": recipe.composition.attempt_cap,
         "totals": {"slots": len(slots), "rows": sum(2 * p + e for p, e in table.values()), "render_jobs": jobs, "undrawable_slots": undrawable},
         "estimate": {
-            "workers": workers, "docker_memory_gb": resources.DOCKER_MEMORY_GB,
+            "workers": workers, "fits_now": workers >= 1, "docker_memory_gb": resources.DOCKER_MEMORY_GB,
+            "mem_available_gb": round(resources.mem_available_bytes() / resources.GIB, 2),
             "memory_gb": round(workers * resources.DOCKER_MEMORY_GB + resources.RAM_FLOOR_BYTES / resources.GIB, 2),
-            "wall_s": round(jobs / (RENDER_JOBS_PER_S * workers)), "rough": True,
-            "basis": f"{RENDER_JOBS_PER_S:g} rendered formulas/s per worker (round 0 only; refill rounds add more)",
+            "draw_s": round(draw_s, 1), "wall_s": round(draw_s + jobs / (RENDER_JOBS_PER_S * max(workers, 1))), "rough": True,
+            "basis": f"measured draw time + {RENDER_JOBS_PER_S:g} rendered formulas/s per worker (round 0 only; refill rounds add more); "
+            "workers capped by current MemAvailable minus the 1.5 GiB floor",
         },
     }  # fmt: skip
 

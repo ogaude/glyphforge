@@ -200,7 +200,17 @@ def test_plan_prints_and_writes_nothing(rdir, tmp_path, monkeypatch):
     assert "recipe_sha256" in res.stdout and "greek.upsilon_v" in res.stdout and "estimate" in res.stdout and "render_jobs" in res.stdout
     assert set(tmp_path.rglob("*")) == before
     j = _run("plan", r, "--json")
-    assert json.loads(j.stdout) == pipeline.plan_run(r)
+    drop = ("draw_s", "wall_s", "mem_available_gb")
+    strip = lambda p: p | {"estimate": {k: v for k, v in p["estimate"].items() if k not in drop}}
+    assert strip(json.loads(j.stdout)) == strip(pipeline.plan_run(r))
+
+
+def test_plan_warns_when_no_container_fits(rdir, monkeypatch):
+    from glyphforge import resources
+
+    monkeypatch.setattr(resources, "mem_available_bytes", lambda: resources.RAM_FLOOR_BYTES)
+    res = _run("plan", _recipe(rdir))
+    assert res.exit_code == 0 and "MemAvailable" in res.stderr and "0 worker(s)" in res.stdout
 
 
 def test_validate(rdir, tmp_path, store):
