@@ -1,11 +1,8 @@
-import hashlib
 import json
 
-import numpy as np
 import pytest
 from PIL import Image
 
-from glyphforge import store
 from glyphforge.export import control_glyphs_used, export_glyphfix
 from glyphforge.export.glyphfix import ROLE_GROUP
 
@@ -13,48 +10,11 @@ REQUIRED_KEYS = ("id", "paper_id", "image", "latex", "target_text", "group", "wi
 FENCE = "`" * 3
 
 
-def _sample(slot, role, label, cls, glyph, licence, arr, extra=False):
-    png = store.png_bytes(arr)
-    sha = hashlib.sha256(png).hexdigest()
-    by = licence.startswith("CC-BY")
-    row = dict.fromkeys(store.SAMPLE_KEYS)
-    row.update(
-        authors=["A. Author"] if by else [], bitmap_sha256="b" * 64, class_version=1, env="equation*", error_class=cls, family=cls.split(".")[0],
-        flags=[], generator_version="0.1.0", height=arr.shape[0], image=f"images/{sha[:2]}/{sha}.png", image_digest="sha256:x", image_sha256=sha,
-        label=label, licence=licence, pair_id=f"p{slot}", paper_id="2101.00001" if by else None, paper_version="v1" if by else None,
-        recipe_sha256="ab" * 32, role=role, rules={}, sample_id=f"s{slot}-{role}", seed=slot, slot=slot, style="default",
-        style_preamble_sha256="s" * 64, width=arr.shape[1],
-        control_glyph=glyph if role == "hard_negative" else None, attempt=0, column_cm=None, control_kind="extra" if extra else "pair", font="cm",
-        n_sites=1, n_tokens=3, pad_px=0, site_level="base", size_pt=12, source="list", structure="display", wrapper="display",
-    )
-    if extra:
-        row.update(pair_id=None, sample_id=f"p{slot}-c0")
-    return row, {sha: png}
-
-
 @pytest.fixture
-def exported(tmp_path):
-    a, b = np.full((8, 12), 255, np.uint8), np.full((9, 14), 255, np.uint8)
-    a[3:5, 3:9] = 0
-    b[2:7, 4:10] = 0
-    parts = [
-        _sample(0, "target", r"\upsilon", "greek.upsilon_v@1", None, "CC0-1.0", a),
-        _sample(0, "hard_negative", "v", "greek.upsilon_v@1", "v", "CC0-1.0", b),
-        _sample(1, "target", r"\bar{x}", "decorations.bar_overline@1", None, "CC-BY-4.0", a),
-        _sample(1, "hard_negative", r"\overline{x}", "decorations.bar_overline@1", r"\overline", "CC-BY-4.0", b),
-        _sample(0, "hard_negative", "w", "greek.upsilon_v@1", "v", "CC0-1.0", b, extra=True),
-    ]
-    samples = [p[0] for p in parts]
-    images = {k: v for _, im in parts for k, v in im.items()}
-    ledger = [
-        {"attempt": 0, "control_kind": s["control_kind"], "error_class": s["error_class"], "font": "cm", "label": s["label"], "pair_id": s["pair_id"],
-         "reason": None, "role": s["role"], "sample_id": s["sample_id"], "slot": s["slot"], "source": "list", "structure": "display",
-         "style": "default"}
-        for s in samples
-    ]  # fmt: skip
-    store.write_store(tmp_path / "store", samples, images, ledger, {"recipe_sha256": "ab" * 32})
-    manifest = export_glyphfix(tmp_path / "store", tmp_path / "out")
-    return tmp_path / "out", manifest, samples
+def exported(tmp_path, make_store):
+    s = make_store()
+    manifest = export_glyphfix(s.store, tmp_path / "out", spec=s.spec, base_dir=s.base_dir)
+    return tmp_path / "out", manifest, s.samples
 
 
 def _rows(out):
@@ -91,7 +51,7 @@ def test_manifest_and_errors(exported, tmp_path):
     assert control_glyphs_used(samples) == manifest["control_glyphs_used"]
     assert str(tmp_path) not in (out / "trainset.jsonl").read_text() + (out / "export_manifest.json").read_text()
     with pytest.raises(FileExistsError):
-        export_glyphfix(tmp_path / "store", out)
+        export_glyphfix(tmp_path / "store", out, base_dir=tmp_path)
 
 
 def test_real_glyphfix_reader(exported):

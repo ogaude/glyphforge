@@ -1,15 +1,13 @@
-"""Export a store to glyphfix-math's training-set layout: trainset.jsonl + root-relative PNGs + export_manifest.json."""
+"""Row shape and writer for glyphfix-math's training-set layout: trainset.jsonl + root-relative PNGs (called by export_store)."""
 
 from __future__ import annotations
 
-import json
-import shutil
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
 
+from glyphforge.fileio import jsonl_bytes
 from glyphforge.sources.base import LICENSES
-from glyphforge.store import read_store
 
 FENCE = "`" * 3
 ROLE_GROUP = {"target": "error", "hard_negative": "control"}
@@ -39,29 +37,13 @@ def _row(s: dict) -> dict:
     return row
 
 
-def _dump(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
-
-
-def export_glyphfix(store_dir: Path, out_dir: Path) -> dict:
-    store_dir, out_dir = Path(store_dir), Path(out_dir)
-    run, samples, _ = read_store(store_dir)
-    if (out_dir / "trainset.jsonl").exists():
-        raise FileExistsError(f"{out_dir / 'trainset.jsonl'} already exists")
-    rows = [_row(s) for s in samples]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for s in samples:
-        dest = out_dir / s["image"]
+def write_glyphfix(tmp: Path, delivered: Iterable[tuple[dict, bytes, list[dict]]]) -> list[dict]:
+    """Write each delivered image at its row path plus ``trainset.jsonl``; returns the trainset rows."""
+    rows = []
+    for s, png, ops in delivered:
+        dest = tmp / s["image"]
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(store_dir / s["image"], dest)
-    manifest = {
-        "format": "glyphfix-trainset",
-        "n_rows": len(rows),
-        "groups": dict(sorted(Counter(r["group"] for r in rows).items())),
-        "control_glyphs_used": control_glyphs_used(samples),
-        "licenses": dict(sorted(Counter(r["license_spdx"] for r in rows).items())),
-        "recipe_sha256": run.get("recipe_sha256"),
-    }
-    _dump(out_dir / "trainset.jsonl", "".join(json.dumps(r, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n" for r in rows))
-    _dump(out_dir / "export_manifest.json", json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    return manifest
+        dest.write_bytes(png)
+        rows.append(_row(s) | {"degrade_ops": ops})
+    (tmp / "trainset.jsonl").write_bytes(jsonl_bytes(rows))
+    return rows
