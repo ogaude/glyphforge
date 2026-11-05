@@ -104,7 +104,7 @@ class DrawContext:
 def plan_slots(
     classes: Sequence[ErrorClass], composition: CompositionSpec, *, source_kinds: Sequence[str], first_share: float, recipe_hash: str
 ) -> tuple[list[Slot], dict[str, int]]:
-    """Exact per-class quotas (largest remainder), round-robin class order, Bresenham source interleave and extra-control counts."""
+    """Exact per-class quotas (largest remainder), round-robin class order, per-class Bresenham source interleave and extra-control counts."""
     names = [c.name for c in classes]
     shares = composition.shares if composition.shares is not None else dict.fromkeys(names, 1.0)
     if unknown := sorted(set(shares) - set(names)):
@@ -112,7 +112,11 @@ def plan_slots(
     quotas = largest_remainder(composition.total, {n: shares.get(n, 0.0) for n in names})
     by_name = {c.name: c for c in classes}
     order = class_slots(quotas)
-    src = [0 if len(source_kinds) == 1 or spread(i, first_share) else 1 for i in range(len(order))]
+    seen: dict[str, int] = dict.fromkeys(names, 0)
+    src = []
+    for n in order:  # the mix is spread over each class's own slot index so classes never alias with sources
+        src.append(0 if len(source_kinds) == 1 or spread(seen[n], first_share) else 1)
+        seen[n] += 1
     extra = [spread(i, composition.hard_negative_ratio - 1) for i in range(len(order))]
     grammar = [i for i, s in enumerate(src) if source_kinds[s] == "grammar"]
     ids = dict(zip(grammar, synthetic_paper_ids([2 + extra[i] for i in grammar], f"synth:{recipe_hash[:8]}"), strict=True))

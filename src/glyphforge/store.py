@@ -16,11 +16,14 @@ import numpy as np
 from PIL import Image
 
 SAMPLE_KEYS = (
-    "authors", "bitmap_sha256", "class_version", "control_glyph", "env", "error_class", "family", "flags", "generator_version", "height",
-    "image", "image_digest", "image_sha256", "label", "licence", "pair_id", "paper_id", "paper_version", "recipe_sha256", "role", "rules",
-    "sample_id", "seed", "slot", "style", "style_preamble_sha256", "width",
-)
-LEDGER_KEYS = ("error_class", "label", "pair_id", "reason", "role", "slot", "style")
+    "attempt", "authors", "bitmap_sha256", "class_version", "column_cm", "control_glyph", "control_kind", "env", "error_class", "family",
+    "flags", "font", "generator_version", "height", "image", "image_digest", "image_sha256", "label", "licence", "n_sites", "n_tokens",
+    "pad_px", "pair_id", "paper_id", "paper_version", "recipe_sha256", "role", "rules", "sample_id", "seed", "site_level", "size_pt",
+    "slot", "source", "structure", "style", "style_preamble_sha256", "width", "wrapper",
+)  # fmt: skip
+LEDGER_KEYS = (
+    "attempt", "control_kind", "error_class", "font", "label", "pair_id", "reason", "role", "sample_id", "slot", "source", "structure", "style",
+)  # fmt: skip
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -72,9 +75,8 @@ def write_store(out_dir: Path, samples: Sequence[dict], images: Mapping[str, byt
             raise ValueError(f"sample {s['sample_id']!r} image path does not match images/<sha[:2]>/<sha>.png of a stored image")
     for sha, data in images.items():
         _atomic_write(out_dir / "images" / sha[:2] / f"{sha}.png", data)
-    order = lambda r: (r["slot"], r["role"])
-    _atomic_write(out_dir / "samples.jsonl", _jsonl(sorted(samples, key=order)))
-    _atomic_write(out_dir / "ledger.jsonl", _jsonl(sorted(ledger, key=order)))
+    _atomic_write(out_dir / "samples.jsonl", _jsonl(sorted(samples, key=lambda r: (r["slot"], r["role"], r["sample_id"]))))
+    _atomic_write(out_dir / "ledger.jsonl", _jsonl(sorted(ledger, key=lambda r: (r["slot"], r["attempt"], r["role"], r["sample_id"]))))
     _atomic_write(out_dir / "run.json", (json.dumps(run, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))
 
 

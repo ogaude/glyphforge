@@ -91,6 +91,13 @@ def test_source_interleave_is_exact():
     assert {s.source for s in _slots([UPS], 10)[0]} == {0}
 
 
+def test_source_mix_is_spread_per_class():
+    slots, quotas = _slots([UPS, PRIME], 10, source_kinds=("list", "list"), first_share=0.5)
+    for cls in (UPS, PRIME):
+        mine = [s for s in slots if s.error_class.name == cls.name]
+        assert abs(sum(s.source == 0 for s in mine) - 0.5 * quotas[cls.name]) <= 1 and {s.source for s in mine} == {0, 1}
+
+
 def test_extra_control_counts():
     assert sum(s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=1.5)[0]) == 5
     assert {s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=1.0)[0]} == {0}

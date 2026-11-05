@@ -13,7 +13,10 @@ from glyphforge.store import read_store
 
 FENCE = "`" * 3
 ROLE_GROUP = {"target": "error", "hard_negative": "control"}
-_COPIED = ("authors", "class_version", "error_class", "family", "flags", "generator_version", "pair_id", "paper_version", "recipe_sha256", "seed", "style")
+_COPIED = (
+    "authors", "class_version", "control_kind", "error_class", "family", "flags", "generator_version", "pair_id", "paper_version",
+    "recipe_sha256", "seed", "source", "structure", "style",
+)  # fmt: skip
 
 
 def target_text(latex: str) -> str:

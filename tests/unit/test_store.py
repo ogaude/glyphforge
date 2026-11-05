@@ -22,7 +22,8 @@ def make_sample(slot, role, png, **over):
         authors=[], bitmap_sha256="b" * 64, class_version=1, env="equation*", error_class="greek.upsilon_v@1", family="greek", flags=[],
         generator_version="0.1.0", height=6, image=f"images/{sha[:2]}/{sha}.png", image_digest="sha256:x", image_sha256=sha, label="v",
         licence="CC0-1.0", pair_id=f"p{slot}", recipe_sha256="r" * 64, role=role, rules={"canon": "1"}, sample_id=f"s{slot}-{role}", seed=slot,
-        slot=slot, style="default", style_preamble_sha256="s" * 64, width=9,
+        slot=slot, style="default", style_preamble_sha256="s" * 64, width=9, attempt=0, column_cm=None, control_kind="pair", font="cm",
+        n_sites=1, n_tokens=3, pad_px=0, site_level="base", size_pt=12, source="list", structure="display", wrapper="display",
     )
     if role == "hard_negative":
         row["control_glyph"] = "v"
@@ -31,7 +32,10 @@ def make_sample(slot, role, png, **over):
 
 
 def ledger_row(slot, role):
-    return {"error_class": "c@1", "label": "v", "pair_id": f"p{slot}", "reason": None, "role": role, "slot": slot, "style": "default"}
+    return {
+        "attempt": 0, "control_kind": "pair", "error_class": "c@1", "font": "cm", "label": "v", "pair_id": f"p{slot}", "reason": None, "role": role,
+        "sample_id": f"s{slot}-{role}", "slot": slot, "source": "list", "structure": "display", "style": "default",
+    }  # fmt: skip
 
 
 def build(tmp_path):

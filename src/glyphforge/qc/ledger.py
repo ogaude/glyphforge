@@ -7,7 +7,11 @@ from collections.abc import Iterable
 
 from glyphforge.render import STATUSES
 
-REASONS = tuple(s for s in STATUSES if s != "rendered") + ("ambiguous-identical", "pair_partner_dropped")
+REASONS = tuple(s for s in STATUSES if s != "rendered") + (
+    "ambiguous-identical",
+    "pair_partner_dropped",
+    "slot_partner_dropped",  # a row of a slot whose other row failed; the slot is the unit with extra controls
+)
 
 
 def _cell() -> dict:
