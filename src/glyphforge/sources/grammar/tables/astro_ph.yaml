@@ -1,0 +1,45 @@
+# Hand-written for GlyphForge and dedicated to the public domain (CC0-1.0). Not taken from any paper.
+licence: CC0-1.0
+domain: astro-ph
+version: "1"
+rules:
+  start:
+    - {rhs: '$S = $expr', weight: 3}
+    - {rhs: 'm - M = 5 \log_{10} $S - 5', weight: 1}
+    - {rhs: 'L = 4 \pi R^{2} \sigma $S', weight: 1}
+    - {rhs: '$S \propto $term', weight: 1}
+    - {rhs: 'v = H_{0} $S', weight: 1}
+  start_multiline:
+    - {rhs: '$S &= $expr \\ &\propto $term', weight: 2}
+    - {rhs: '$expr &= $S \\ &= $expr', weight: 2}
+    - {rhs: 'L &= 4 \pi R^{2} \sigma $S \\ &= $expr', weight: 2}
+  var:
+    - {rhs: 'z', weight: 3}
+    - {rhs: 'd', weight: 3}
+    - {rhs: 'L', weight: 2}
+    - {rhs: 'T', weight: 2}
+    - {rhs: 'M', weight: 2}
+    - {rhs: 'R', weight: 2}
+    - {rhs: '\lambda', weight: 1}
+    - {rhs: '\rho', weight: 1}
+  expr:
+    - {rhs: '1 + z', weight: 2}
+    - {rhs: '$term + $term', weight: 2}
+    - {rhs: '\frac{$term}{$term}', weight: 3}
+    - {rhs: '\frac{L}{L_{\odot}}', weight: 2}
+    - {rhs: '\frac{M}{M_{\odot}}', weight: 2}
+    - {rhs: '\left( 1 + z \right)^{$var}', weight: 1}
+    - {rhs: '\int_{0}^{z} \frac{d z}{E(z)}', weight: 1}
+    - {rhs: '\log_{10} $term', weight: 2}
+    - {rhs: '5 \log_{10} $term - 5', weight: 1}
+    - {rhs: '\sqrt{\frac{$term}{$term}}', weight: 1}
+    - {rhs: '4 \pi', weight: 1}
+  term:
+    - {rhs: '$var', weight: 3}
+    - {rhs: '$var^{2}', weight: 2}
+    - {rhs: '$var^{-2}', weight: 1}
+    - {rhs: '$var_{0}', weight: 2}
+    - {rhs: '2 $var', weight: 1}
+    - {rhs: 'H_{0}', weight: 1}
+    - {rhs: 'c', weight: 1}
+    - {rhs: '1', weight: 1}
