@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("typer")
-import yaml  # noqa: E402
-from typer.testing import CliRunner  # noqa: E402
+import yaml
+from typer.testing import CliRunner
 
-from glyphforge import pipeline  # noqa: E402
-from glyphforge.canon import canonical  # noqa: E402
-from glyphforge._cli import build_app  # noqa: E402
+from glyphforge import pipeline
+from glyphforge._cli import build_app
+from glyphforge.canon import canonical
 
 SCHEMA = Path(__file__).resolve().parents[2] / "src" / "glyphforge" / "recipe" / "schema.json"
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
@@ -174,7 +174,7 @@ def test_export_leak_hit_and_sha_mismatch(store, rdir, tmp_path):
 
 
 def test_blocklist_command(tmp_path, monkeypatch):
-    import glyphforge.export.leak as leak
+    from glyphforge.export import leak
 
     monkeypatch.setattr(leak, "build_blocklist", lambda root, out: {"sha256": "ab", "counts": {"formulas": 3, "papers": 2}})
     res = _run("blocklist", tmp_path, tmp_path / "bl.jsonl")

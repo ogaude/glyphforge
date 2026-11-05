@@ -1,4 +1,6 @@
 import inspect
+import subprocess
+import sys
 
 import pytest
 
@@ -31,3 +33,21 @@ def test_signatures():
     assert params["style"].kind is inspect.Parameter.KEYWORD_ONLY and params["style"].default is None
     assert list(inspect.signature(r.cache_key).parameters) == ["latex", "wrapper", "style"]
     assert list(inspect.signature(r.render_equivalence).parameters) == ["gt", "pred", "render_kwargs"]
+
+
+LAZY_NAMES = [
+    "export_parquet", "export_glyphfix", "export_store", "leak_check", "build_blocklist", "LeakError", "degrade_ops", "apply_ops", "plan_run",
+    "preview_html", "preview_recipe", "validate_recipe", "check_store",
+]  # fmt: skip
+
+
+@pytest.mark.parametrize("name", LAZY_NAMES)
+def test_lazy_exports_resolve(name):
+    import glyphforge
+
+    assert callable(getattr(glyphforge, name)) and name in glyphforge.__all__
+
+
+def test_import_glyphforge_is_light():
+    code = "import sys, glyphforge; assert not ({'pyarrow', 'datasets'} & set(sys.modules))"
+    subprocess.run([sys.executable, "-I", "-c", code], check=True)
