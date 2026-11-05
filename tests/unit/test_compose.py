@@ -67,3 +67,24 @@ def test_plugin_extras_stay_single_site():
 
     v = compose("a b", Plug(), Plug().sites(""), random.Random(0))
     assert v == Variant("T0", "H", "g", ("extra",))
+
+
+def test_rng_using_plugin_gets_the_same_choice_per_site_in_every_pass():
+    """WR-05: each single-site flip differs from the target at exactly one site, even when apply() draws from rng."""
+
+    class Pick:
+        name, version, family, packages = "p.pick", "1", "p", frozenset()
+
+        def sites(self, latex):
+            return tuple(Site(i, i + 1, "x") for i, ch in enumerate(latex) if ch == "v")
+
+        def apply(self, latex, site, rng):
+            hn = "uw"[int(rng.random() * 2)]
+            return Variant(latex, latex[: site.start] + hn + latex[site.end :], "v")
+
+    latex = "v+v+v+v"
+    for seed in range(20):
+        v = compose(latex, Pick(), _desc(Pick(), latex), random.Random(seed))
+        assert v.target == latex
+        for alt in v.hard_negative_alternates[1:]:
+            assert sum(a != b for a, b in zip(alt, v.hard_negative, strict=True)) == 1
