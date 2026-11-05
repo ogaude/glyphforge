@@ -73,3 +73,10 @@ class TestDocker:
         (narrow,) = _render([label], tmp_path, Style("cm", 10, column_cm=5))
         (wide,) = _render([label], tmp_path, Style("cm", 10, column_cm=30))
         assert narrow.shape[0] == wide.shape[0]
+
+    def test_no_math_break_in_narrow_column(self, tmp_path):
+        """Inline math wider than the column must not break after a relation or binary operator (\\relpenalty, \\binoppenalty)."""
+        label = "where $a+b+c+d+e+f+g+h=i+j+k+l+m+n+o+p$"
+        (narrow,) = _render([label], tmp_path, Style("cm", 10, column_cm=3))
+        (wide,) = _render([label], tmp_path, Style("cm", 10, column_cm=30))
+        assert narrow.shape[0] == wide.shape[0]

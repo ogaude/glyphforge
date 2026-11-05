@@ -10,9 +10,10 @@ from glyphforge.render import docker
 _DEFAULT_PKGS = r"\usepackage{amsmath,amssymb,amsfonts,mathtools,bm,upgreek,mathrsfs}"
 _GEOMETRY = r"\usepackage[paperwidth=40cm,paperheight=20cm,margin=1cm]{geometry}"
 # A set text column replaces the margin geometry with one consistent line (a second \geometry{} after margin=1cm is ignored), and
-# disables hyphenation: a narrow column must never add a visible "-" that the single-line label lacks.
+# disables hyphenation and line breaks after relations/binary operators: a narrow column must never add a visible "-" the label
+# lacks, nor split inline math across lines.
 _COLUMN = r"\usepackage[paperwidth=40cm,paperheight=20cm,left=1cm,top=1cm,textwidth={w:g}cm,textheight=17cm]{{geometry}}"
-_NO_HYPHENATION = r"\hyphenpenalty=10000 \exhyphenpenalty=10000"
+_NO_BREAKS = r"\hyphenpenalty=10000 \exhyphenpenalty=10000 \relpenalty=10000 \binoppenalty=10000"
 
 # Package load orders verified to compile in the pinned image; never append fonts to the default line outside these recipes.
 FONT_BLOCKS: dict[str, tuple[str, ...]] = {
@@ -57,7 +58,7 @@ class Style:
         if self.is_default:
             return docker.PREAMBLE
         cls = "extarticle" if self.size < 10 else "article"
-        col = () if self.column_cm is None else (_NO_HYPHENATION,)
+        col = () if self.column_cm is None else (_NO_BREAKS,)
         geometry = _GEOMETRY if self.column_cm is None else _COLUMN.format(w=self.column_cm)
         lines = [rf"\documentclass[{self.size}pt]{{{cls}}}", geometry, *FONT_BLOCKS[self.font], *self.extra, r"\pagestyle{empty}", r"\setlength{\parindent}{0pt}", *col]
         return "".join(line + "\n" for line in lines)

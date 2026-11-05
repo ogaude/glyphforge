@@ -91,11 +91,11 @@ def test_default_key_matches_glyphfix_math_golden_rows(monkeypatch):
 
 
 def test_column_preamble():
-    """One consistent geometry line carries the column (CR-01) and hyphenation is off (WR-02); no column keeps the margin geometry."""
+    """One consistent geometry line carries the column (CR-01) and hyphenation and math breaks are off (WR-02); no column keeps the margin geometry."""
     pre = Style(size=10, column_cm=8.5).preamble
     assert pre.count("geometry") == 1
     assert "left=1cm,top=1cm,textwidth=8.5cm,textheight=17cm]{geometry}" in pre and "margin=1cm" not in pre
-    assert "\\hyphenpenalty=10000 \\exhyphenpenalty=10000\n" in pre
+    assert "\\hyphenpenalty=10000 \\exhyphenpenalty=10000 \\relpenalty=10000 \\binoppenalty=10000\n" in pre
     assert "hyphenpenalty" not in Style(size=10).preamble and "margin=1cm" in Style(size=10).preamble
     assert not Style(column_cm=12).is_default
     with pytest.raises(ValueError):
