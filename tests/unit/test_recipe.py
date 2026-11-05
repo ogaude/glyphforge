@@ -8,7 +8,17 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from glyphforge.recipe import DEFAULT_STYLES, DegradeSpec, Recipe, StyleSpec, effective_styles, frozen_recipe, load_recipe, recipe_sha256, to_style
+from glyphforge.recipe import (
+    DEFAULT_STYLES,
+    DegradeSpec,
+    Recipe,
+    StyleSpec,
+    effective_styles,
+    frozen_recipe,
+    load_recipe,
+    recipe_sha256,
+    to_style,
+)
 from glyphforge.render.style import Style
 from glyphforge.sources import Formula
 

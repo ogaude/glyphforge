@@ -18,7 +18,7 @@ SAMPLE_KEYS = (
     "attempt", "authors", "bitmap_sha256", "class_version", "column_cm", "control_glyph", "control_kind", "env", "error_class", "family",
     "flags", "font", "generator_version", "height", "image", "image_digest", "image_sha256", "label", "licence", "n_sites", "n_tokens",
     "pad_px", "pair_id", "paper_id", "paper_version", "recipe_sha256", "role", "rules", "sample_id", "seed", "site_level", "size_pt",
-    "slot", "source", "structure", "style", "style_preamble_sha256", "width", "wrapper",
+    "slot", "source", "source_canon", "structure", "style", "style_preamble_sha256", "width", "wrapper",
 )  # fmt: skip
 LEDGER_KEYS = (
     "attempt", "control_kind", "error_class", "font", "label", "pair_id", "reason", "role", "sample_id", "slot", "source", "structure", "style",

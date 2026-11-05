@@ -13,6 +13,7 @@ from PIL import Image
 
 import glyphforge
 from glyphforge import pipeline
+from glyphforge.canon import canonical
 from glyphforge.errors import ConfusionPair, builtin_registry
 from glyphforge.pipeline import build_registry, resolve_classes, run
 from glyphforge.recipe import Recipe
@@ -77,14 +78,20 @@ def test_resolve_classes():
 def test_exact_quotas_and_run_json(tmp_path, fake):
     names = ["greek.upsilon_v", "greek.nu_v", "greek.iota_i"]
     forms = [r"v+\nu+i+a", r"\upsilon+\iota+b+v", r"x+v+i+\nu", r"\nu+\upsilon+i+c"]
-    recipe = _recipe(forms, names, composition={"total": 12, "shares": dict(zip(names, (0.5, 0.25, 0.25), strict=True))})
-    r, run_info, samples, ledger = _go(tmp_path, recipe)
+    bl = Path(__file__).parents[1] / "fixtures"
+    pin = {"path": "blocklist.jsonl", "sha256": hashlib.sha256((bl / "blocklist.jsonl").read_bytes()).hexdigest()}
+    recipe = _recipe(
+        forms, names, composition={"total": 12, "shares": dict(zip(names, (0.5, 0.25, 0.25), strict=True))},
+        export={"formats": ["glyphfix"], "blocklist": pin},
+    )  # fmt: skip
+    r, run_info, samples, ledger = _go(tmp_path, recipe, base_dir=bl)
+    assert {s["source_canon"] for s in samples} <= {canonical(x) for x in forms} and all(s["source_canon"] for s in samples)
     assert r.slots_planned == 12 and r.rows_kept == len(samples) == 24 and r.rows_dropped == len(ledger) == 0
     assert Counter(s["error_class"] for s in samples if s["role"] == "target") == dict(zip(names, (6, 3, 3), strict=True))
     assert r.shortfall["short_total"] == 0 and r.shortfall["short_classes"] == [] and r.warnings == run_info["balance"]["warnings"]
     assert all(set(s) == set(SAMPLE_KEYS) for s in samples)
     assert run_info["quotas"] == dict(zip(names, (6, 3, 3), strict=True)) and run_info["shortfall"] == r.shortfall
-    assert run_info["schema_version"] == 2 and run_info["attempts"] == {"cap": 5, "rounds": 1}
+    assert run_info["schema_version"] == 3 and run_info["attempts"] == {"cap": 5, "rounds": 1}
     assert run_info["counts"]["slots_planned"] == run_info["counts"]["slots_kept"] == 12
     assert run_info["token_estimator"] == {"fit": [0.92, 6.5], "cap": 440} and run_info["grammar_table_version"]
     assert run_info["mix_shares"] == [1.0] and run_info["sources"] == [{"kind": "list"}]
