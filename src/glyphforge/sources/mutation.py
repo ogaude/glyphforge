@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
-from glyphforge.fileio import atomic_write, jsonl_bytes
+from glyphforge.fileio import atomic_write, file_sha256, jsonl_bytes
 from glyphforge.sources.base import LICENSES, Formula
 from glyphforge.sources.listing import draw_index, resolve_inside
 
@@ -31,15 +31,6 @@ POOLS = (
 # \notag would leave an invisible label token; \eqno/\leqno render a visible number that collides with a numbered look's \tag
 _NUMBERING = re.compile(r"\\(?:label|tag|nonumber|notag|eqno|leqno)(?![A-Za-z])")
 _MIN_AREA = 65_536  # Qwen2-VL smart_resize minimum pixels
-_MIB = 1 << 20
-
-
-def _file_sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as fh:
-        while chunk := fh.read(_MIB):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _quantiles(values: list[int]) -> dict[str, int]:
@@ -63,12 +54,12 @@ def build_snapshot(glyphfix_root: Path, out: Path) -> dict:
         for cat in sorted(root.glob(cat_glob)):
             if cat.name.endswith(".excluded.jsonl"):
                 continue
-            digests.append(f"{cat.relative_to(root)}:{_file_sha256(cat)}")
+            digests.append(f"{cat.relative_to(root)}:{file_sha256(cat)}")
             catalog.update({r["arxiv_id"]: r for r in _jsonl_rows(cat)})
         read, rejected, papers = 0, Counter(), set()
         kept = []
         for shard in sorted((root / shard_dir).glob("*.jsonl")):
-            digests.append(f"{shard.relative_to(root)}:{_file_sha256(shard)}")
+            digests.append(f"{shard.relative_to(root)}:{file_sha256(shard)}")
             for r in _jsonl_rows(shard):
                 read += 1
                 if r.get("builder_version") != builder:
@@ -156,7 +147,7 @@ class MutationSource:
 def load_snapshot(spec: SourceSpec, base_dir: Path) -> MutationSource:
     """Verify the pinned sha256, then keep only licence-allowed train rows without duplicate latex."""
     path = resolve_inside(base_dir, spec.path, ".jsonl")
-    if (actual := _file_sha256(path)) != spec.sha256:
+    if (actual := file_sha256(path)) != spec.sha256:
         raise ValueError(f"snapshot sha256 mismatch: recipe pins {spec.sha256}, file is {actual}")
     rows, seen, rejected = [], set(), Counter()
     with path.open(encoding="utf-8") as fh:
