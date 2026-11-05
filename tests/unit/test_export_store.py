@@ -132,8 +132,15 @@ def test_parquet_tree_manifest_and_roundtrip(tmp_path, make_store):
     s = make_store()
     manifest = export_parquet(s.store, tmp_path / "o", base_dir=s.base_dir)
     out = tmp_path / "o"
-    assert sorted(_tree(out)) == ["ATTRIBUTION.md", "README.md", "data/train-00000-of-00001.parquet", "export_manifest.json"]
+    assets = [f"assets/pair-{i:02d}-{k}.png" for i in range(2) for k in ("control", "error")]
+    assert sorted(_tree(out)) == ["ATTRIBUTION.md", "README.md", *assets, "data/train-00000-of-00001.parquet", "export_manifest.json"]
     assert manifest == json.loads((out / "export_manifest.json").read_text())
+    assert manifest["error_classes"] == {"decorations.bar_overline@1": 2, "greek.upsilon_v@1": 3} and sum(manifest["fonts"].values()) == 5
+    assert len(manifest["grid"]) == 2 and manifest["grid"][0]["target"] == "assets/pair-00-error.png"
+    first = min((x for x in s.samples if x["role"] == "target"), key=lambda x: x["sample_id"])
+    assert (out / "assets/pair-00-error.png").read_bytes() == (s.store / first["image"]).read_bytes()
+    export_parquet(s.store, tmp_path / "o2", base_dir=s.base_dir)
+    assert _tree(out) == _tree(tmp_path / "o2")
     assert {
         "export_spec",
         "export_spec_sha256",
