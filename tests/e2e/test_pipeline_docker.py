@@ -60,7 +60,7 @@ def test_every_family_end_to_end(default_run):
     classes = resolve_classes(reg, recipe.classes)
     rh = run_json["recipe_sha256"]
     assert rh == recipe_sha256(frozen_recipe(recipe, [f"{c.name}@{c.version}" for c in classes]))
-    ctx, slots, _ = build_context(recipe, classes, Path.cwd(), recipe_hash=rh)
+    ctx, slots, _ = build_context(recipe, classes, FIXTURES, recipe_hash=rh)
     for s in samples[:: max(1, len(samples) // 5)][:5]:
         d = draw_slot(slots[s["slot"]], s["attempt"], ctx)
         assert s["label"] == (d.target if s["role"] == "target" else d.hard_negative)
