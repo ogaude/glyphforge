@@ -84,6 +84,7 @@ class Draft:
     target_alternates: tuple[str, ...]
     hard_negative_alternates: tuple[str, ...]
     n_tokens: int
+    hard_negative_n_tokens: int
     seed: int
     controls: tuple[Control, ...]
 
@@ -253,7 +254,7 @@ def draw_slot(slot: Slot, attempt: int, ctx: DrawContext) -> Draft | None:
         controls.append(Control(j, cf, ch, c_alts, cv.control_glyph, count(ch), _level(cf.latex, csites), cf.paper_id))
     return Draft(
         slot, attempt, look, wrapper_for(look), to_style(look.style, cls.packages, look.column_cm), _own(f, slot),
-        ctx.source_kinds[slot.source], n_sites, _level(f.latex, own), v, t, h, t_alts, h_alts, n_tokens,
+        ctx.source_kinds[slot.source], n_sites, _level(f.latex, own), v, t, h, t_alts, h_alts, n_tokens, count(h),
         slot_seed(ctx.seed, "site", i, attempt), tuple(controls),
     )  # fmt: skip
 

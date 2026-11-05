@@ -212,7 +212,7 @@ def test_draft_fields_for_a_display_slot():
     assert d.wrapper == "display" and d.source_kind == "list" and d.n_sites == 1 and d.site_level == "base"
     assert d.target == d.variant.target and d.hard_negative == d.variant.hard_negative
     assert d.hard_negative in d.target_alternates and d.target in d.hard_negative_alternates
-    assert d.n_tokens == est_tokens(d.target) and d.controls == ()
+    assert d.n_tokens == est_tokens(d.target) and d.hard_negative_n_tokens == est_tokens(d.hard_negative) and d.controls == ()
     assert d.style.font == d.look.style.font and d.seed == draw_slot(_slot(2), 0, _ctx(VS)).seed
 
 
