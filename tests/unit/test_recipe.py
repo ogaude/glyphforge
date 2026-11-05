@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from glyphforge.recipe import DEFAULT_STYLES, Recipe, StyleSpec, effective_styles, frozen_recipe, load_recipe, recipe_sha256, to_style
+from glyphforge.recipe import DEFAULT_STYLES, DegradeSpec, Recipe, StyleSpec, effective_styles, frozen_recipe, load_recipe, recipe_sha256, to_style
 from glyphforge.render.style import Style
 from glyphforge.sources import Formula
 
@@ -43,7 +43,7 @@ def test_formula_rejects(kw):
 def test_recipe_defaults():
     r = Recipe.model_validate({})
     assert (r.seed, r.source.kind, r.classes, r.plugins, r.entry_points) == (0, "builtin", None, (), False)
-    assert r.qc.ambiguity == "drop" and r.export.formats == ("glyphfix",) and r.schema_version == 2
+    assert r.qc.ambiguity == "drop" and r.export.formats == () and r.schema_version == 3
     assert r.styles is None and r.structure.kinds == {"display": 1.0, "inline": 0.0, "numbered": 0.0}
     assert (r.composition.total, r.composition.shares, r.composition.hard_negative_ratio, r.composition.attempt_cap) == (100, None, 1.0, 5)
     assert r.bounds.token_cap == 440 and r.bounds.max_depth == 6 and r.bounds.max_scripts == 12 and r.render.pad_px == 0
@@ -236,3 +236,42 @@ def test_to_style_column():
     assert st.column_cm == 12 and st.extra == () and not st.is_default
     assert st.preamble_sha256 != to_style(spec).preamble_sha256 != to_style(spec, column_cm=8.5).preamble_sha256
     assert to_style(spec, column_cm=None) == to_style(spec)
+
+
+_PIN = {"path": "b.jsonl", "sha256": "a" * 64}
+
+
+def test_export_defaults_and_formats():
+    e = Recipe().export
+    assert (e.formats, e.blocklist, e.degrade, e.shard_mb) == ((), None, None, 500)
+    ok = Recipe.model_validate({"export": {"formats": ["glyphfix", "parquet"], "blocklist": _PIN}})
+    assert ok.export.formats == ("glyphfix", "parquet")
+
+
+@pytest.mark.parametrize(
+    "export",
+    [
+        {"formats": ["parquet"]},
+        {"formats": ["parquet", "parquet"], "blocklist": _PIN},
+        {"blocklist": {"path": "b.jsonl", "sha256": "xyz"}},
+        {"blocklist": {"path": "b.jsonl"}},
+        {"shard_mb": 0},
+        {"bogus": 1},
+    ],
+)
+def test_export_rejects(export):
+    with pytest.raises(ValidationError):
+        Recipe.model_validate({"export": export})
+
+
+def test_export_needs_blocklist_message():
+    with pytest.raises(ValidationError, match="blocklist"):
+        Recipe.model_validate({"export": {"formats": ["parquet"]}})
+
+
+def test_degrade_defaults_and_caps():
+    s = DegradeSpec(blur={})
+    assert (s.blur.min, s.blur.max, s.blur.p, s.rotate) == (0.3, 0.8, 0.5, None)
+    for bad in ({"rotate": {"max": 5}}, {"blur": {"min": 0.9, "max": 0.4}}, {"jpeg": {"min": 30}}, {"clean_share": 2}):
+        with pytest.raises(ValidationError):
+            DegradeSpec.model_validate(bad)

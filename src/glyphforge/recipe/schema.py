@@ -1,4 +1,4 @@
-"""Strict recipe schema (schema_version 2): sources, classes, plugins, QC, typography, structure, composition, bounds, render, export."""
+"""Strict recipe schema (schema_version 3): sources, classes, plugins, QC, typography, structure, composition, bounds, render, export."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, Strict
 
 from glyphforge.sources.base import Formula
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 PACKAGE_RE = r"^[A-Za-z][A-Za-z0-9-]*$"
 MODULE_RE = r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$"
 
@@ -192,12 +192,71 @@ class QCSpec(_Model):
     ambiguity: Literal["drop", "flag"] = "drop"
 
 
+class BlocklistPin(_Model):
+    path: StrictStr
+    sha256: StrictStr = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class OpSpec(_Model):
+    p: float = Field(default=0.5, ge=0, le=1)
+    min: float | None = None
+    max: float | None = None
+
+
+# Fixed application order; units: contrast factor (1 = unchanged), rotate degrees (magnitude), blur/noise sigma, jpeg quality.
+DEGRADE_OPS = ("contrast", "rotate", "blur", "noise", "jpeg")
+DEGRADE_DEFAULTS = {"contrast": (0.7, 1.0), "rotate": (0.0, 1.5), "blur": (0.3, 0.8), "noise": (1.0, 4.0), "jpeg": (60.0, 95.0)}
+DEGRADE_CAPS = {"contrast": (0.5, 1.0), "rotate": (0.0, 3.0), "blur": (0.0, 1.5), "noise": (0.0, 8.0), "jpeg": (40.0, 100.0)}
+
+
+class DegradeSpec(_Model):
+    clean_share: float = Field(default=0.0, ge=0, le=1)
+    contrast: OpSpec | None = None
+    rotate: OpSpec | None = None
+    blur: OpSpec | None = None
+    noise: OpSpec | None = None
+    jpeg: OpSpec | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fill(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        for op in DEGRADE_OPS:
+            if isinstance(given := out.get(op), dict):
+                out[op] = {"min": DEGRADE_DEFAULTS[op][0], "max": DEGRADE_DEFAULTS[op][1]} | given
+        return out
+
+    @model_validator(mode="after")
+    def _caps(self) -> DegradeSpec:
+        for op in DEGRADE_OPS:
+            if (s := getattr(self, op)) is None:
+                continue
+            lo, hi = DEGRADE_CAPS[op]
+            if not lo <= s.min <= s.max <= hi:
+                raise ValueError(f"degrade.{op}: range [{s.min}, {s.max}] outside cap [{lo}, {hi}]")
+        return self
+
+
 class ExportSpec(_Model):
-    formats: tuple[Literal["glyphfix"], ...] = ("glyphfix",)
+    formats: tuple[Literal["glyphfix", "parquet"], ...] = ()
+    blocklist: BlocklistPin | None = None
+    shard_mb: StrictInt = Field(default=500, ge=1, le=4096)
+    row_group_rows: StrictInt = Field(default=1000, ge=1, le=100_000)
+    degrade: DegradeSpec | None = None
+
+    @model_validator(mode="after")
+    def _gate(self) -> ExportSpec:
+        if len(set(self.formats)) != len(self.formats):
+            raise ValueError("export.formats must be unique")
+        if self.formats and self.blocklist is None:
+            raise ValueError("export.formats needs export.blocklist (path + sha256): the leak gate has no skip")
+        return self
 
 
 class Recipe(_Model):
-    schema_version: Literal[2] = SCHEMA_VERSION
+    schema_version: Literal[3] = SCHEMA_VERSION
     seed: StrictInt = Field(default=0, ge=0)
     source: SourceSpec = SourceSpec()
     classes: tuple[StrictStr, ...] | None = None
