@@ -146,7 +146,7 @@ def test_failed_extra_control_ledgers_the_whole_slot(tmp_path, fake):
 
 def test_zero_formula_slots_are_counted(tmp_path, fake):
     r, run_info, samples, _ = _go(tmp_path, _recipe(["a+b"], ["greek.upsilon_v"]))
-    assert r.rows_kept == 0 and not samples and run_info["counts"]["no_draw"] == 6 * 5
+    assert r.rows_kept == 0 and not samples and run_info["counts"]["no_draw_attempts"] == 6 * 5
     assert ["greek.upsilon_v@1", "cm"] in r.survival["zero_yield"] and r.shortfall["short_total"] == 6 and not fake
 
 

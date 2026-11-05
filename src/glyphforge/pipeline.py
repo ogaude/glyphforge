@@ -228,7 +228,7 @@ def run(
         "attempts": {"cap": recipe.composition.attempt_cap, "rounds": rounds},
         "counts": {
             "slots_planned": len(slots), "slots_kept": len(kept), "rows_kept": len(samples), "rows_dropped": len(ledger),
-            "by_reason": dict(sorted(by_reason.items())), "no_draw": no_draw,
+            "by_reason": dict(sorted(by_reason.items())), "no_draw_attempts": no_draw,  # slot-rounds without a drawable formula, not distinct slots
         },
         "alternates_not_rendered": not_rendered,
         "survival": (surv := survival(entries, [(cid, f) for cid, c in zip(class_ids, classes, strict=True) if quotas.get(c.name) for f in fonts])),
