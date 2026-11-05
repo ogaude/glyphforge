@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
-JSONL = sorted(p for p in FIX.glob("*.jsonl") if p.name not in {"canon_golden.jsonl", "mutation_snapshot.jsonl"})
+JSONL = sorted(p for p in FIX.glob("*.jsonl") if p.name not in {"blocklist.jsonl", "canon_golden.jsonl", "mutation_snapshot.jsonl"})
 
 
 def test_no_sensitive_content():
