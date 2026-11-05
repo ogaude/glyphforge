@@ -46,9 +46,17 @@ def test_plan_counts_equal_round_zero_and_nothing_written(tmp_path, fake, monkey
 def test_progress_is_output_neutral(tmp_path, fake, tree):
     seen = []
     run(_recipe(), tmp_path / "a", cache=tmp_path / "ca")
-    run(_recipe(), tmp_path / "b", cache=tmp_path / "cb", progress=lambda k, n: seen.append((k, n)))
+    run(_recipe(), tmp_path / "b", cache=tmp_path / "cb", progress=lambda *a: seen.append(a))
     assert tree(tmp_path / "a") == tree(tmp_path / "b")
-    assert seen and all(n == 6 for _, n in seen) and [k for k, _ in seen] == sorted(k for k, _ in seen)
+    slots = [(k, n) for st, k, n in seen if st == "slots"]
+    assert slots and all(n == 6 for _, n in slots) and [k for k, _ in slots] == sorted(k for k, _ in slots)
+    assert {st for st, _, _ in seen} <= {"index", "slots"}
+
+
+def test_plan_reports_index_and_draw_progress(tmp_path):
+    seen = []
+    plan_run(_recipe(), progress=lambda *a: seen.append(a))
+    assert seen[-1] == ("draw", 6, 6)
 
 
 def test_plan_rejects_unknown_class():

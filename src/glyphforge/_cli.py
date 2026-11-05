@@ -109,7 +109,7 @@ def build_app() -> typer.Typer:
             task = bar.add_task("slots", total=None)
             res = run_recipe(
                 recipe, out, cache=cache, max_parallel=max_workers, batch_size=batch_size, export=not no_export,
-                progress=lambda done, total: bar.update(task, completed=done, total=total),
+                progress=lambda stage, done, total: bar.update(task, description=stage, completed=done, total=total),
             )  # fmt: skip
         typer.echo(f"recipe_sha256 {res.recipe_sha256}")
         typer.echo(f"rows kept {res.rows_kept} dropped {res.rows_dropped} slots {res.slots_planned}")
@@ -125,11 +125,17 @@ def build_app() -> typer.Typer:
     def plan(recipe: Path, as_json: AsJson = False, max_workers: MaxWorkers = None, docker_memory: DockerMemory = None) -> None:
         """Dry run: quota table, totals, recipe hash and a rough wall-time and memory estimate. No Docker, nothing written."""
         _env(docker_memory)
+        from rich.progress import Progress
         from rich.table import Table
 
         from glyphforge.pipeline import plan_run
 
-        p = plan_run(recipe, base_dir=recipe.resolve().parent, max_parallel=max_workers)
+        with Progress(console=Console(stderr=True), transient=True) as bar:
+            task = bar.add_task("index", total=None)
+            p = plan_run(
+                recipe, base_dir=recipe.resolve().parent, max_parallel=max_workers,
+                progress=lambda stage, done, total: bar.update(task, description=stage, completed=done, total=total),
+            )  # fmt: skip
         if as_json:
             typer.echo(json.dumps(p))
             return

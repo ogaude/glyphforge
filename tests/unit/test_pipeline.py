@@ -93,7 +93,7 @@ def test_exact_quotas_and_run_json(tmp_path, fake):
     assert run_info["quotas"] == dict(zip(names, (6, 3, 3), strict=True)) and run_info["shortfall"] == r.shortfall
     assert run_info["schema_version"] == 3 and run_info["attempts"] == {"cap": 5, "rounds": 1}
     assert run_info["counts"]["slots_planned"] == run_info["counts"]["slots_kept"] == 12
-    assert run_info["token_estimator"] == {"fit": [0.92, 6.5], "cap": 440} and run_info["grammar_table_version"]
+    assert run_info["token_estimator"] == {"fit": [0.92, 6.5], "cap": 440} and run_info["grammar_table_version"] and run_info["plan_version"] == "2"
     assert run_info["mix_shares"] == [1.0] and run_info["sources"] == [{"kind": "list"}]
     assert set(run_info) >= {"scale", "balance", "survival", "styles", "render_config", "control_glyphs_used", "alternates_not_rendered"}
     assert len(fake) == 1 and fake[0][0] == "display" and len(set(fake[0][1])) == len(fake[0][1])

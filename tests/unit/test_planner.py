@@ -100,6 +100,25 @@ def test_source_mix_is_spread_per_class():
         assert abs(sum(s.source == 0 for s in mine) - 0.5 * quotas[cls.name]) <= 1 and {s.source for s in mine} == {0, 1}
 
 
+def test_mix_split_is_exact_over_the_run_and_fair_per_class():
+    classes = [REG.get(n) for n in REG.names()[:45]]
+    slots, quotas = _slots(classes, 120, source_kinds=("grammar", "list"), first_share=0.3)
+    assert len(classes) == 45 and sum(s.source == 0 for s in slots) == 36
+    for c in classes:
+        g = sum(s.source == 0 for s in slots if s.error_class.name == c.name)
+        assert g in (int(quotas[c.name] * 36 / 120), -(-quotas[c.name] * 36 // 120))
+        assert quotas[c.name] < 4 or {s.source for s in slots if s.error_class.name == c.name} == {0, 1}
+
+
+def test_single_source_plan_is_unchanged():
+    """The golden digests come from the planner before the exact mix split; a single source must not move."""
+    cl = [REG.get(n) for n in ("greek.upsilon_v", "primes.prime_l", "greek.omicron_o")]
+    for kind, digest in (("list", "3cdf7a1a4318fc30"), ("grammar", "e80d02ac2f8f19b9")):
+        slots, _ = _slots(cl, 17, source_kinds=(kind,), hard_negative_ratio=1.5)
+        rows = [(s.index, s.error_class.name, s.source, s.n_extra, s.paper_id, s.pair_id) for s in slots]
+        assert hashlib.sha256(repr(rows).encode()).hexdigest()[:16] == digest
+
+
 def test_extra_control_counts():
     assert sum(s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=1.5)[0]) == 5
     assert {s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=1.0)[0]} == {0}

@@ -18,7 +18,7 @@ from glyphforge.canon import canon_versions, canonical
 from glyphforge.errors import BUILTIN_MODULES, DEFAULT_REGISTRY, ErrorClass, Registry, builtin_registry
 from glyphforge.export import control_glyphs_used, export_store
 from glyphforge.pixels import PIXEL_POLICY_VERSION
-from glyphforge.plan import TOKEN_FIT, build_context, draw_slot, shortfall
+from glyphforge.plan import PLAN_VERSION, TOKEN_FIT, build_context, draw_slot, shortfall
 from glyphforge.plan.draw import Control, Draft, DrawContext
 from glyphforge.qc import pair_integrity, survival, verdict
 from glyphforge.recipe import SCHEMA_VERSION, Recipe, frozen_recipe, load_recipe, recipe_sha256, to_style
@@ -160,7 +160,12 @@ def _round(
     return kept, ledger, entries, len(open_slots) - len(drafts), not_rendered
 
 
-def _prepare(recipe: Recipe | Mapping | str | Path, base_dir: Path | None, token_counter: Callable[[str], int] | None) -> tuple:
+def _prepare(
+    recipe: Recipe | Mapping | str | Path,
+    base_dir: Path | None,
+    token_counter: Callable[[str], int] | None,
+    progress: Callable[[str, int, int], None] | None = None,
+) -> tuple:
     """Resolve a recipe and build its registry, classes, frozen form, hash, draw context, slots and quotas (shared by run and plan_run)."""
     if isinstance(recipe, str | Path):
         base_dir = base_dir or Path(recipe).resolve().parent
@@ -173,7 +178,7 @@ def _prepare(recipe: Recipe | Mapping | str | Path, base_dir: Path | None, token
     class_ids = [f"{c.name}@{c.version}" for c in classes]
     frozen = frozen_recipe(recipe, class_ids)
     rh = recipe_sha256(frozen)
-    ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter)
+    ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter, progress=progress)
     return recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas
 
 
@@ -183,11 +188,12 @@ def plan_run(
     base_dir: Path | None = None,
     max_parallel: int | None = None,
     token_counter: Callable[[str], int] | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> dict:
     """Docker-free dry run: per class x source quota table, totals, recipe hash and a rough time and memory estimate. Writes nothing."""
     from glyphforge import resources
 
-    recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter)
+    recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter, progress)
     table: dict[tuple[str, str], list[int]] = {}
     jobs = undrawable = 0
     for lo in range(0, len(slots), SLOTS_PER_RENDER):
@@ -195,6 +201,8 @@ def plan_run(
         drafts = [d for s in chunk if (d := draw_slot(s, 0, ctx)) is not None]
         undrawable += len(chunk) - len(drafts)
         jobs += sum(len(k) for k in render_jobs(drafts).values())
+        if progress:
+            progress("draw", lo + len(chunk), len(slots))
     for s in slots:
         row = table.setdefault((s.error_class.name, ctx.source_kinds[s.source]), [0, 0])
         row[0] += 1
@@ -226,13 +234,13 @@ def run(
     base_dir: Path | None = None,
     token_counter: Callable[[str], int] | None = None,
     export: bool = True,
-    progress: Callable[[int, int], None] | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> RunResult:
     """Run a recipe end to end into ``out_dir``; the output depends on the recipe only, never on ``max_parallel`` or ``batch_size``."""
     out_dir = Path(out_dir)
     if (out_dir / "run.json").exists():
         raise FileExistsError(f"{out_dir / 'run.json'} already exists")
-    recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas = _prepare(recipe, base_dir, token_counter)
+    recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas = _prepare(recipe, base_dir, token_counter, progress)
 
     kept: dict[int, list[dict]] = {}
     ledger, entries, no_draw, not_rendered, rounds = [], [], 0, 0, 0
@@ -243,7 +251,7 @@ def run(
         for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)
     ]
     env = {
-        "generator_version": __version__, "canon_versions": canon_versions(), "render_config": render_config(), "grammar_table_version": TABLE_VERSION,
+        "generator_version": __version__, "canon_versions": canon_versions(), "render_config": render_config(), "grammar_table_version": TABLE_VERSION, "plan_version": PLAN_VERSION,
         "token_estimator": {"custom": token_counter.__qualname__} if token_counter else {"fit": list(TOKEN_FIT), "cap": recipe.bounds.token_cap},
     }  # fmt: skip
     header = json.loads(
@@ -263,7 +271,7 @@ def run(
             g, ld, en, n1, n2 = _round(todo[lo : lo + SLOTS_PER_RENDER], attempt, ctx, recipe, rh, cache, max_parallel, batch_size, out_dir)
             got, led, ent, nd, nr = got | g, led + ld, ent + en, nd + n1, nr + n2
             if progress:
-                progress(len(kept) + len(got), len(slots))
+                progress("slots", len(kept) + len(got), len(slots))
         write_round(out_dir, header, attempt, got, led, ent, nd, nr)
         kept |= got
         ledger += led
