@@ -33,6 +33,7 @@ TEXT_FRAGMENTS = (
 )  # fmt: skip
 PUNCT = (",", ".", ";")
 MAX_DRAWS = 20
+PLAN_VERSION = "2"  # bump when slot planning changes; 2 = exact global mix split
 _LEVELS = ("base", "script", "scriptscript")
 _TAG_SPLIT = "\n\\tag{"
 
@@ -110,7 +111,11 @@ class DrawContext:
 def plan_slots(
     classes: Sequence[ErrorClass], composition: CompositionSpec, *, source_kinds: Sequence[str], first_share: float, recipe_hash: str
 ) -> tuple[list[Slot], dict[str, int]]:
-    """Exact per-class quotas (largest remainder), round-robin class order, per-class Bresenham source interleave and extra-control counts."""
+    """Exact per-class quotas (largest remainder), round-robin class order and extra-control counts.
+
+    A mix splits exactly over the whole run (largest remainder of the total), then over classes (largest remainder of that count by quota),
+    then each class interleaves its own first-source slots with Bresenham spreading so classes never alias with sources.
+    """
     names = [c.name for c in classes]
     shares = composition.shares if composition.shares is not None else dict.fromkeys(names, 1.0)
     if unknown := sorted(set(shares) - set(names)):
@@ -118,10 +123,13 @@ def plan_slots(
     quotas = largest_remainder(composition.total, {n: shares.get(n, 0.0) for n in names})
     by_name = {c.name: c for c in classes}
     order = class_slots(quotas)
+    mix = len(source_kinds) > 1
+    first = Fraction(str(first_share))
+    owed = largest_remainder(largest_remainder(composition.total, {"0": first, "1": 1 - first})["0"], quotas) if mix else {}
     seen: dict[str, int] = dict.fromkeys(names, 0)
     src = []
-    for n in order:  # the mix is spread over each class's own slot index so classes never alias with sources
-        src.append(0 if len(source_kinds) == 1 or spread(seen[n], first_share) else 1)
+    for n in order:
+        src.append(0 if not mix or spread(seen[n], Fraction(owed[n], quotas[n])) else 1)
         seen[n] += 1
     rate = Fraction(str(composition.hard_negative_ratio)) - 1  # 1.15 - 1 in floats is 0.1499..., which undershoots the prefix sums
     extra = [spread(i, rate) for i in range(len(order))]
@@ -277,9 +285,15 @@ def _own(f: Formula, slot: Slot) -> Formula:
 
 
 def build_context(
-    recipe: Recipe, classes: Sequence[ErrorClass], base_dir: Path, *, recipe_hash: str, counter: Callable[[str], int] | None = None
+    recipe: Recipe,
+    classes: Sequence[ErrorClass],
+    base_dir: Path,
+    *,
+    recipe_hash: str,
+    counter: Callable[[str], int] | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> tuple[DrawContext, list[Slot], dict[str, int]]:
-    """Open the recipe's sources (a mix opens both parts in order) and plan the slots."""
+    """Open the recipe's sources (a mix opens both parts in order), plan the slots and pre-build each list or mutation source's class indices."""
     from glyphforge.export.leak import load_blocklist
     from glyphforge.recipe.load import effective_styles  # lazy: keeps plan/ free of pydantic at import time
     from glyphforge.sources.listing import load_source
@@ -295,4 +309,7 @@ def build_context(
     slots, quotas = plan_slots(
         classes, recipe.composition, source_kinds=kinds, first_share=spec.shares[0] if spec.kind == "mix" else 1.0, recipe_hash=recipe_hash
     )
+    for k, src in enumerate(ctx.sources):
+        if kinds[k] != "grammar":
+            src.index(list({s.error_class.name: s.error_class for s in slots if s.source == k}.values()), progress)
     return ctx, slots, quotas

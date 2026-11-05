@@ -8,7 +8,7 @@ import functools
 import json
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 from rich.console import Console
@@ -109,7 +109,7 @@ def build_app() -> typer.Typer:
             task = bar.add_task("slots", total=None)
             res = run_recipe(
                 recipe, out, cache=cache, max_parallel=max_workers, batch_size=batch_size, export=not no_export,
-                progress=lambda done, total: bar.update(task, completed=done, total=total),
+                progress=lambda stage, done, total: bar.update(task, description=stage, completed=done, total=total),
             )  # fmt: skip
         typer.echo(f"recipe_sha256 {res.recipe_sha256}")
         typer.echo(f"rows kept {res.rows_kept} dropped {res.rows_dropped} slots {res.slots_planned}")
@@ -125,11 +125,17 @@ def build_app() -> typer.Typer:
     def plan(recipe: Path, as_json: AsJson = False, max_workers: MaxWorkers = None, docker_memory: DockerMemory = None) -> None:
         """Dry run: quota table, totals, recipe hash and a rough wall-time and memory estimate. No Docker, nothing written."""
         _env(docker_memory)
+        from rich.progress import Progress
         from rich.table import Table
 
         from glyphforge.pipeline import plan_run
 
-        p = plan_run(recipe, base_dir=recipe.resolve().parent, max_parallel=max_workers)
+        with Progress(console=Console(stderr=True), transient=True) as bar:
+            task = bar.add_task("index", total=None)
+            p = plan_run(
+                recipe, base_dir=recipe.resolve().parent, max_parallel=max_workers,
+                progress=lambda stage, done, total: bar.update(task, description=stage, completed=done, total=total),
+            )  # fmt: skip
         if as_json:
             typer.echo(json.dumps(p))
             return
@@ -140,7 +146,13 @@ def build_app() -> typer.Typer:
         typer.echo(f"recipe_sha256 {p['recipe_sha256']}")
         typer.echo(" ".join(f"{k} {v}" for k, v in p["totals"].items()) + f" attempt_cap {p['attempt_cap']}")
         e = p["estimate"]
-        typer.echo(f"estimate (rough): {e['workers']} worker(s), {e['memory_gb']} GB, ~{e['wall_s']} s; {e['basis']}")
+        typer.echo(f"estimate (rough): {e['workers']} worker(s), {e['memory_gb']} GB, draw {e['draw_s']} s, ~{e['wall_s']} s total; {e['basis']}")
+        if not e["fits_now"]:
+            typer.echo(
+                f"warning: no container fits now: MemAvailable {e['mem_available_gb']} GB, need {e['memory_gb']} GB "
+                f"({e['docker_memory_gb']} GB container + 1.5 GB floor)",
+                err=True,
+            )
 
     @app.command()
     @_exits
@@ -179,14 +191,16 @@ def build_app() -> typer.Typer:
         recipe: Annotated[
             Path | None, typer.Option("--recipe", help="Take only this file's export section instead of the store's frozen one.")
         ] = None,
-        fmt: Annotated[str | None, typer.Option("--format", help="glyphfix or parquet; default is the store's frozen format list.")] = None,
+        fmt: Annotated[
+            Literal["glyphfix", "parquet"] | None, typer.Option("--format", help="glyphfix or parquet; default is the store's frozen format list.")
+        ] = None,
         as_json: AsJson = False,
     ) -> None:
         """Export STORE to OUT/<format> with the leak gate always run first.
 
         Uses the store's frozen export section; --recipe takes only the export section of another file (recorded in the manifest). The
-        blocklist path resolves against the --recipe file's directory, else against the current directory; its pinned sha256 is always
-        verified. A leak hit prints the hit report and exits 1 with nothing written.
+        blocklist path resolves against the --recipe file's directory, else against the current directory (a store whose recipe sits
+        elsewhere needs --recipe); its pinned sha256 is always verified and an empty blocklist is refused. A leak hit prints the hit report and exits 1 with nothing written.
         """
         from glyphforge.export import export_store
         from glyphforge.recipe import load_recipe

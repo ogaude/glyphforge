@@ -35,8 +35,7 @@ Every row carries its own `license`, `license_uri` and a ready-to-cite `attribut
 
 $licenses_table
 
-Grammar rows are dedicated to the public domain under CC0-1.0. Mutated rows are CC BY derivatives of arXiv equations; they keep the
-paper id (`arxiv_id`), version and authors, and the changes are noted in `attribution`. The per-paper list is in ATTRIBUTION.md.
+$licence_text
 
 ## Rendering
 
@@ -47,7 +46,7 @@ paper id (`arxiv_id`), version and authors, and the changes are noted in `attrib
 
 ## Leakage policy
 
-Blocklist pin: `$blocklist_path` (sha256 `$blocklist_sha256`).
+Blocklist pin: `$blocklist_path` (sha256 `$blocklist_sha256`), $blocklist_formulas formulas and $blocklist_papers papers.
 
 $leak_policy
 

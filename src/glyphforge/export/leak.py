@@ -111,11 +111,11 @@ def build_blocklist(glyphfix_root: Path, out: Path) -> dict:
     return meta
 
 
-def load_blocklist(pin: BlocklistPin, base_dir: Path) -> Blocklist:
-    """Verify the pinned sha256, then parse the strict {"k","v"} lines."""
+def load_blocklist(pin: BlocklistPin, base_dir: Path, *, hint: str = "") -> Blocklist:
+    """Verify the pinned sha256, then parse the strict {"k","v"} lines; a pool with no entries is refused. ``hint`` is appended to a not-found error."""
     path = resolve_inside(base_dir, pin.path, ".jsonl")
     if not path.is_file():
-        raise FileNotFoundError(f"blocklist not found: {path} (recipe pins sha256 {pin.sha256})")
+        raise FileNotFoundError(f"blocklist not found: {path} (recipe pins sha256 {pin.sha256}){hint}")
     if (actual := file_sha256(path)) != pin.sha256:
         raise ValueError(f"blocklist sha256 mismatch: {path}: recipe pins {pin.sha256}, file is {actual}")
     pools: dict[str, set[str]] = {"formula": set(), "paper": set()}
@@ -130,6 +130,9 @@ def load_blocklist(pin: BlocklistPin, base_dir: Path) -> Blocklist:
             except ValueError as exc:
                 raise ValueError(f"{pin.path}:{lineno}: {exc}") from exc
             pools[row["k"]].add(base_id(row["v"]) if row["k"] == "paper" else row["v"])
+    for kind, pool in pools.items():
+        if not pool:
+            raise ValueError(f"blocklist {path} has 0 {kind}s; the leak gate would be vacuous")
     return Blocklist(frozenset(pools["formula"]), frozenset(pools["paper"]), actual)
 
 

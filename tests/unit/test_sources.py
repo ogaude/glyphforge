@@ -183,6 +183,31 @@ def test_draw_site_index_built_once():
     assert len(calls) == n
 
 
+def test_one_pass_index_equals_the_per_class_scan(registry, seed_latex):
+    from glyphforge.rng import slot_rng
+
+    classes = [registry.get(n) for n in registry.names()]
+    src = ListSource(builtin_seed())
+    src.index(classes)
+    for cls in classes:
+        assert src._index[(cls.name, cls.version)] == tuple(i for i, s in enumerate(seed_latex) if cls.sites(s))
+    lazy = ListSource(builtin_seed())
+    for cls in classes:
+        assert src.draw(cls, slot_rng(3, "source", 0)) == lazy.draw(cls, slot_rng(3, "source", 0))
+
+
+def test_index_progress_and_tokenisation_shared_across_classes(registry):
+    from glyphforge.errors.api import token_spans
+
+    rows = tuple(_f(f"v_{{{i}}}'+x^2") for i in range(2500))
+    classes = [registry.get(n) for n in registry.names()]
+    token_spans.cache_clear()
+    seen = []
+    ListSource(rows).index(classes, lambda *a: seen.append(a))
+    assert token_spans.cache_info().misses <= len(rows) + 8
+    assert seen == [("index", 1000, 2500), ("index", 2000, 2500)]
+
+
 def test_list_source_is_a_draw_source():
     from glyphforge.sources import DrawSource
 

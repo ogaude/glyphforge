@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import time
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -18,7 +19,7 @@ from glyphforge.canon import canon_versions, canonical
 from glyphforge.errors import BUILTIN_MODULES, DEFAULT_REGISTRY, ErrorClass, Registry, builtin_registry
 from glyphforge.export import control_glyphs_used, export_store
 from glyphforge.pixels import PIXEL_POLICY_VERSION
-from glyphforge.plan import TOKEN_FIT, build_context, draw_slot, shortfall
+from glyphforge.plan import PLAN_VERSION, TOKEN_FIT, build_context, draw_slot, shortfall
 from glyphforge.plan.draw import Control, Draft, DrawContext
 from glyphforge.qc import pair_integrity, survival, verdict
 from glyphforge.recipe import SCHEMA_VERSION, Recipe, frozen_recipe, load_recipe, recipe_sha256, to_style
@@ -29,8 +30,9 @@ from glyphforge.store import JOURNAL, ImageDir, journal_image, png_bytes, read_j
 
 # Slots drawn and rendered per render_many call within a round: bounds round memory without changing any draw (draws are slot-pure).
 SLOTS_PER_RENDER = 512
-# Rendered formulas per second per worker, rough; Phase 1 bench_render: 22-26/s at batch 100-200, cold cache.
-RENDER_JOBS_PER_S = 20.0
+# Rendered formulas per second per worker, end to end after the draw (render, QC, store, export), rough. Phase 1 bench_render measured 22-26/s for
+# the render alone; the Phase 4 end-to-end run (120 slots, 280 jobs, 1 container, 1:52 total with ~70 s of draw) implies ~280 / 42 s = 7/s overall.
+RENDER_JOBS_PER_S = 7.0
 
 
 def build_registry(recipe: Recipe) -> Registry:
@@ -160,7 +162,12 @@ def _round(
     return kept, ledger, entries, len(open_slots) - len(drafts), not_rendered
 
 
-def _prepare(recipe: Recipe | Mapping | str | Path, base_dir: Path | None, token_counter: Callable[[str], int] | None) -> tuple:
+def _prepare(
+    recipe: Recipe | Mapping | str | Path,
+    base_dir: Path | None,
+    token_counter: Callable[[str], int] | None,
+    progress: Callable[[str, int, int], None] | None = None,
+) -> tuple:
     """Resolve a recipe and build its registry, classes, frozen form, hash, draw context, slots and quotas (shared by run and plan_run)."""
     if isinstance(recipe, str | Path):
         base_dir = base_dir or Path(recipe).resolve().parent
@@ -173,7 +180,7 @@ def _prepare(recipe: Recipe | Mapping | str | Path, base_dir: Path | None, token
     class_ids = [f"{c.name}@{c.version}" for c in classes]
     frozen = frozen_recipe(recipe, class_ids)
     rh = recipe_sha256(frozen)
-    ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter)
+    ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter, progress=progress)
     return recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas
 
 
@@ -183,11 +190,13 @@ def plan_run(
     base_dir: Path | None = None,
     max_parallel: int | None = None,
     token_counter: Callable[[str], int] | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> dict:
     """Docker-free dry run: per class x source quota table, totals, recipe hash and a rough time and memory estimate. Writes nothing."""
     from glyphforge import resources
 
-    recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter)
+    t0 = time.perf_counter()
+    recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter, progress)
     table: dict[tuple[str, str], list[int]] = {}
     jobs = undrawable = 0
     for lo in range(0, len(slots), SLOTS_PER_RENDER):
@@ -195,11 +204,14 @@ def plan_run(
         drafts = [d for s in chunk if (d := draw_slot(s, 0, ctx)) is not None]
         undrawable += len(chunk) - len(drafts)
         jobs += sum(len(k) for k in render_jobs(drafts).values())
+        if progress:
+            progress("draw", lo + len(chunk), len(slots))
     for s in slots:
         row = table.setdefault((s.error_class.name, ctx.source_kinds[s.source]), [0, 0])
         row[0] += 1
         row[1] += s.n_extra
-    workers = max_parallel or resources.DOCKER_MAX_PARALLEL
+    draw_s = time.perf_counter() - t0
+    workers = resources.docker_parallel_cap(max_parallel=max_parallel)
     return {
         "recipe_sha256": rh,
         "quotas": [
@@ -208,10 +220,12 @@ def plan_run(
         "attempt_cap": recipe.composition.attempt_cap,
         "totals": {"slots": len(slots), "rows": sum(2 * p + e for p, e in table.values()), "render_jobs": jobs, "undrawable_slots": undrawable},
         "estimate": {
-            "workers": workers, "docker_memory_gb": resources.DOCKER_MEMORY_GB,
+            "workers": workers, "fits_now": workers >= 1, "docker_memory_gb": resources.DOCKER_MEMORY_GB,
+            "mem_available_gb": round(resources.mem_available_bytes() / resources.GIB, 2),
             "memory_gb": round(workers * resources.DOCKER_MEMORY_GB + resources.RAM_FLOOR_BYTES / resources.GIB, 2),
-            "wall_s": round(jobs / (RENDER_JOBS_PER_S * workers)), "rough": True,
-            "basis": f"{RENDER_JOBS_PER_S:g} rendered formulas/s per worker (round 0 only; refill rounds add more)",
+            "draw_s": round(draw_s, 1), "wall_s": round(draw_s + jobs / (RENDER_JOBS_PER_S * max(workers, 1))), "rough": True,
+            "basis": f"measured draw time + {RENDER_JOBS_PER_S:g} rendered formulas/s per worker (round 0 only; refill rounds add more); "
+            "workers capped by current MemAvailable minus the 1.5 GiB floor",
         },
     }  # fmt: skip
 
@@ -226,13 +240,13 @@ def run(
     base_dir: Path | None = None,
     token_counter: Callable[[str], int] | None = None,
     export: bool = True,
-    progress: Callable[[int, int], None] | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> RunResult:
     """Run a recipe end to end into ``out_dir``; the output depends on the recipe only, never on ``max_parallel`` or ``batch_size``."""
     out_dir = Path(out_dir)
     if (out_dir / "run.json").exists():
         raise FileExistsError(f"{out_dir / 'run.json'} already exists")
-    recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas = _prepare(recipe, base_dir, token_counter)
+    recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas = _prepare(recipe, base_dir, token_counter, progress)
 
     kept: dict[int, list[dict]] = {}
     ledger, entries, no_draw, not_rendered, rounds = [], [], 0, 0, 0
@@ -243,7 +257,7 @@ def run(
         for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)
     ]
     env = {
-        "generator_version": __version__, "canon_versions": canon_versions(), "render_config": render_config(), "grammar_table_version": TABLE_VERSION,
+        "generator_version": __version__, "canon_versions": canon_versions(), "render_config": render_config(), "grammar_table_version": TABLE_VERSION, "plan_version": PLAN_VERSION,
         "token_estimator": {"custom": token_counter.__qualname__} if token_counter else {"fit": list(TOKEN_FIT), "cap": recipe.bounds.token_cap},
     }  # fmt: skip
     header = json.loads(
@@ -263,7 +277,7 @@ def run(
             g, ld, en, n1, n2 = _round(todo[lo : lo + SLOTS_PER_RENDER], attempt, ctx, recipe, rh, cache, max_parallel, batch_size, out_dir)
             got, led, ent, nd, nr = got | g, led + ld, ent + en, nd + n1, nr + n2
             if progress:
-                progress(len(kept) + len(got), len(slots))
+                progress("slots", len(kept) + len(got), len(slots))
         write_round(out_dir, header, attempt, got, led, ent, nd, nr)
         kept |= got
         ledger += led

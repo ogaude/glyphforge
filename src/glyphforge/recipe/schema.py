@@ -224,8 +224,10 @@ class DegradeSpec(_Model):
             return data
         out = dict(data)
         for op in DEGRADE_OPS:
-            if isinstance(given := out.get(op), dict):
-                out[op] = {"min": DEGRADE_DEFAULTS[op][0], "max": DEGRADE_DEFAULTS[op][1]} | given
+            if isinstance(given := out.get(op), OpSpec):  # a Python caller's instance gets the same defaults and cap errors as a YAML dict
+                given = given.model_dump(exclude_none=True)
+            if isinstance(given, dict):
+                out[op] = {"min": DEGRADE_DEFAULTS[op][0], "max": DEGRADE_DEFAULTS[op][1]} | {k: v for k, v in given.items() if v is not None}
         return out
 
     @model_validator(mode="after")

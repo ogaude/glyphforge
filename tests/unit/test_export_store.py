@@ -54,6 +54,14 @@ def test_leak_aborts_before_any_write(tmp_path, make_store, fmt, hit):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["bl.jsonl", "store"]
 
 
+@pytest.mark.parametrize("fmt", ["bogus", "../../escaped"])
+def test_unknown_format_is_refused_before_any_write(make_store, tmp_path, fmt):
+    s = make_store()
+    with pytest.raises(ValueError, match="glyphfix"):
+        export_store(s.store, tmp_path / "o" / fmt, fmt, base_dir=s.base_dir)
+    assert not (tmp_path / "o").exists() and not (tmp_path.parent / "escaped").exists()
+
+
 def test_spec_and_store_refusals(tmp_path, make_store):
     s = make_store()
     out = tmp_path / "out"
@@ -135,7 +143,7 @@ def test_parquet_tree_manifest_and_roundtrip(tmp_path, make_store):
         "numpy_version",
         "zlib_version",
     } <= set(manifest)
-    assert manifest["blocklist"] == {"path": "bl.jsonl", "sha256": s.spec.blocklist.sha256} and manifest["leak_hits"] == 0
+    assert manifest["blocklist"] == {"path": "bl.jsonl", "sha256": s.spec.blocklist.sha256, "formulas": 1, "papers": 1} and manifest["leak_hits"] == 0
     assert "arXiv:2101.00001v1" in (out / "ATTRIBUTION.md").read_text()
     datasets = pytest.importorskip("datasets")
     ds = datasets.load_dataset("parquet", data_files=[str(out / manifest["shards"][0])], split="train", cache_dir=str(tmp_path / "cache"))

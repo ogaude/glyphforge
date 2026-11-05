@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Protocol, runtime_checkable
 
 from glyphforge.canon.tokens import _TOKEN_RE  # same token boundaries as the label path
@@ -62,8 +63,9 @@ class ErrorClass(Protocol):
     def apply(self, latex: str, site: Site, rng: random.Random) -> Variant: ...
 
 
+@lru_cache(maxsize=1024)
 def token_spans(latex: str) -> Spans:
-    """(token, start, end) for every non-whitespace token."""
+    """(token, start, end) for every non-whitespace token; memoised, so one formula is tokenised once however many classes inspect it."""
     return tuple((m.group(), m.start(), m.end()) for m in _TOKEN_RE.finditer(latex) if not m.group().isspace())
 
 

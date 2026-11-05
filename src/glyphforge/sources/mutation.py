@@ -7,7 +7,9 @@ import json
 import random
 import re
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,7 +17,7 @@ from pydantic import ValidationError
 
 from glyphforge.fileio import atomic_write, file_sha256, jsonl_bytes
 from glyphforge.sources.base import LICENSES, Formula
-from glyphforge.sources.listing import draw_index, resolve_inside
+from glyphforge.sources.listing import Progress, build_index, draw_index, resolve_inside
 
 if TYPE_CHECKING:
     from glyphforge.errors.api import ErrorClass
@@ -135,13 +137,21 @@ class MutationSource:
 
     def draw(self, cls: ErrorClass, rng: random.Random, *, level: str | None = None, multiline: bool = False) -> Formula | None:
         """A formula with at least one site of ``cls`` carrying its own licence and attribution, or None."""
-        i = draw_index([r["latex"] for r in self.rows], cls, rng, self._index)
+        i = draw_index(self.latexes, cls, rng, self._index)
         if i is None:
             return None
         try:
             return Formula(**self.rows[i])
         except ValidationError:
             return None
+
+    @cached_property
+    def latexes(self) -> tuple[str, ...]:
+        return tuple(r["latex"] for r in self.rows)
+
+    def index(self, classes: Sequence[ErrorClass], progress: Progress | None = None) -> None:
+        """Build the site index of every class in one pass over the rows."""
+        build_index(self.latexes, classes, self._index, progress)
 
 
 def load_snapshot(spec: SourceSpec, base_dir: Path) -> MutationSource:

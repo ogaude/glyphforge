@@ -6,9 +6,9 @@ import hashlib
 import json
 import random
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from functools import cache
+from functools import cache, cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -24,6 +24,7 @@ if TYPE_CHECKING:  # recipe.schema imports sources.base, so a runtime import her
     from glyphforge.sources.mutation import MutationSource
 
 SEED_LICENCE = "CC0-1.0"
+Progress = Callable[[str, int, int], None]
 
 
 @dataclass(frozen=True)
@@ -43,16 +44,35 @@ class ListSource:
 
     def draw(self, cls: ErrorClass, rng: random.Random, *, level: str | None = None, multiline: bool = False) -> Formula | None:
         """A formula with at least one site of ``cls``, or None; ``level`` and ``multiline`` are unused here."""
-        i = draw_index([f.latex for f in self.items], cls, rng, self._index)
+        i = draw_index(self.latexes, cls, rng, self._index)
         return None if i is None else self.items[i]
+
+    @cached_property
+    def latexes(self) -> tuple[str, ...]:
+        return tuple(f.latex for f in self.items)
+
+    def index(self, classes: Sequence[ErrorClass], progress: Progress | None = None) -> None:
+        """Build the site index of every class in one pass over the rows."""
+        build_index(self.latexes, classes, self._index, progress)
+
+
+def build_index(latexes: Sequence[str], classes: Sequence[ErrorClass], cache: dict, progress: Progress | None = None) -> None:
+    """Fill ``cache[(name, version)]`` with the rows where each missing class has a site, in one row-major pass (tokenisation is shared)."""
+    todo = {(c.name, c.version): c for c in classes if (c.name, c.version) not in cache}
+    found: dict[tuple[str, str], list[int]] = {k: [] for k in todo}
+    for i, s in enumerate(latexes):
+        for k, c in todo.items():
+            if c.sites(s):
+                found[k].append(i)
+        if progress and todo and (i + 1) % 1000 == 0:
+            progress("index", i + 1, len(latexes))
+    cache.update({k: tuple(v) for k, v in found.items()})
 
 
 def draw_index(latexes: Sequence[str], cls: ErrorClass, rng: random.Random, cache: dict) -> int | None:
     """Pick a row index uniformly among rows where ``cls`` has a site; the site index is built once per class version."""
-    key = (cls.name, cls.version)
-    if key not in cache:
-        cache[key] = tuple(i for i, s in enumerate(latexes) if cls.sites(s))
-    idx = cache[key]
+    build_index(latexes, (cls,), cache)
+    idx = cache[(cls.name, cls.version)]
     return idx[int(rng.random() * len(idx))] if idx else None
 
 

@@ -106,6 +106,15 @@ def _pin(path, rows=None, name="bl.jsonl"):
 ROWS = [{"k": "formula", "v": canonical("a_{v}")}, {"k": "paper", "v": "bad/001v3"}]
 
 
+@pytest.mark.parametrize(
+    ("rows", "pool"),
+    [([ROWS[0]], "papers"), ([ROWS[1]], "formulas"), ([], "formulas")],
+)
+def test_load_blocklist_refuses_an_empty_pool(tmp_path, rows, pool):
+    with pytest.raises(ValueError, match=f"0 {pool}"):
+        load_blocklist(_pin(tmp_path, rows), tmp_path)
+
+
 def test_load_blocklist_checks_sha_path_and_schema(tmp_path):
     pin = _pin(tmp_path, ROWS)
     bl = load_blocklist(pin, tmp_path)

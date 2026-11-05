@@ -6,7 +6,7 @@ RUN = {"canon_versions": {"normalize": 3}, "render_config": {"dpi": 300}, "pixel
 MANIFEST = {
     "format": "parquet", "n_rows": 3, "roles": {"target": 2, "hard_negative": 1}, "sources": {"list": 2, "grammar": 1},
     "licenses": {"CC0-1.0": 1, "CC-BY-4.0": 2}, "recipe_sha256": "ab" * 32, "generator_version": "0.1.0", "image_digest": "sha256:dig",
-    "blocklist": {"path": "blocklist.jsonl", "sha256": "cd" * 32}, "leak_policy": "Any exact canon match fails the export.",
+    "blocklist": {"path": "blocklist.jsonl", "sha256": "cd" * 32, "formulas": 12, "papers": 7}, "leak_policy": "Any exact canon match fails the export.",
     "degrade": None, "degrade_sha256": None, "shards": ["data/train-00000-of-00001.parquet"], "pyarrow_version": "26.0.1",
     "pillow_version": "12.3.0", "numpy_version": "2.5.0", "zlib_version": "1.3",
 }  # fmt: skip
@@ -45,6 +45,22 @@ def test_card_content_and_determinism():
     assert "\nnone\n" in card
     assert not re.search(r"\d{4}-\d{2}-\d{2}", card)
     assert not re.search(r"/home/|/mnt/|/Users/", card)
+
+
+def test_card_licence_wording_follows_licences_and_leakage_is_a_sentence():
+    both = dataset_card(RUN, MANIFEST)
+    assert "Rows under CC0-1.0" in both and "CC BY licence are derivatives" in both and "Grammar rows are dedicated" not in both
+    assert "12 formulas and 7 papers" in both
+    cc0 = dataset_card(RUN, MANIFEST | {"licenses": {"CC0-1.0": 3}})
+    assert "CC BY" not in cc0.split("## Rendering")[0].split("## Licensing")[1]
+    text = attribution_text([_s("2101.00001", "v1", "CC0-1.0", ["A"])])
+    assert "derived from CC0-licensed papers" in text and "Grammar rows" not in text
+
+
+def test_leak_policy_text_is_capitalised():
+    from glyphforge.export.deliver import LEAK_POLICY
+
+    assert LEAK_POLICY[0].isupper()
 
 
 def test_card_degrade_spec():

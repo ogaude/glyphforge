@@ -99,3 +99,19 @@ def test_incomplete_and_existing(tmp_path):
     store.write_store(*build(tmp_path))
     with pytest.raises(FileExistsError):
         store.write_store(*build(tmp_path))
+
+
+@pytest.mark.parametrize(("mask", "file_mode", "dir_mode"), [(0o022, 0o644, 0o755), (0o077, 0o600, 0o700)])
+def test_atomic_outputs_follow_the_umask(tmp_path, mask, file_mode, dir_mode):
+    import os
+
+    from glyphforge.fileio import atomic_dir, atomic_write
+
+    old = os.umask(mask)
+    try:
+        atomic_write(tmp_path / "f.bin", b"x")
+        with atomic_dir(tmp_path / "d") as tmp:
+            (tmp / "a").write_text("a")
+    finally:
+        os.umask(old)
+    assert (tmp_path / "f.bin").stat().st_mode & 0o777 == file_mode and (tmp_path / "d").stat().st_mode & 0o777 == dir_mode
