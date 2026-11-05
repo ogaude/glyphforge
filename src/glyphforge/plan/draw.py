@@ -159,10 +159,11 @@ def draw_look(seed: int, slot: int, attempt: int, styles: Sequence[tuple[StyleSp
 def dress(body: str, look: Look) -> str:
     """Native LightOnOCR style: display body plus trailing punctuation, numbered adds a final ``\\tag`` line, inline wraps in ``$``."""
     body = body.strip()
+    punct = None if body.endswith(PUNCT) else look.punct  # a body that already ends in punctuation gets no second mark
     if look.structure == "inline":
-        return " ".join(p for p in (look.before, f"${body}$", look.punct, look.after) if p)
-    if look.punct and not body.endswith(PUNCT):
-        body += look.punct
+        return " ".join(p for p in (look.before, f"${body}$", punct, look.after) if p)
+    if punct:
+        body += punct
     return f"{body}{_TAG_SPLIT}{look.tag}}}" if look.tag else body
 
 

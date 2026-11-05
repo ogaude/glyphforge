@@ -176,6 +176,7 @@ def test_dress():
     assert dress("x+1", _look("numbered", tag="3", punct=".")) == "x+1.\n\\tag{3}"
     assert dress("x+1", _look("inline", before="where", punct=",")) == "where $x+1$ ,"
     assert dress("x+1", _look("inline")) == "$x+1$"
+    assert dress("x+1.", _look("inline", before="where", punct=",", after="so")) == "where $x+1.$ so"
     assert dress("x+1", _look("inline", before="and", after="so")) == "and $x+1$ so"
     assert wrapper_for(_look()) == "display" and wrapper_for(_look("inline")) == wrapper_for(_look("numbered", tag="1")) == "line"
 
