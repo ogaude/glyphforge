@@ -7,11 +7,11 @@ import json
 import random
 import re
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
 
@@ -40,7 +40,7 @@ def _quantiles(values: list[int]) -> dict[str, int]:
     return {f"p{q}": v[max(0, -(-q * len(v) // 100) - 1)] for q in (1, 10, 50, 90, 99)} if v else {}
 
 
-def _jsonl_rows(path: Path):
+def _jsonl_rows(path: Path) -> Iterator[dict]:
     return (json.loads(line) for line in path.read_text("utf-8").splitlines() if line.strip())
 
 
@@ -50,7 +50,8 @@ def build_snapshot(glyphfix_root: Path, out: Path) -> dict:
     meta_path = out.with_suffix(".meta.json")
     if out.exists() or meta_path.exists():
         raise FileExistsError(f"{out} already exists")
-    rows, widths, heights, digests, pools = [], [], [], [], {}
+    rows, widths, heights, digests = [], [], [], []
+    pools: dict[str, dict] = {}
     for pool, shard_dir, builder, shard_split, cat_glob, cat_split in POOLS:
         catalog = {}
         for cat in sorted(root.glob(cat_glob)):
@@ -58,7 +59,8 @@ def build_snapshot(glyphfix_root: Path, out: Path) -> dict:
                 continue
             digests.append(f"{cat.relative_to(root)}:{file_sha256(cat)}")
             catalog.update({r["arxiv_id"]: r for r in _jsonl_rows(cat)})
-        read, rejected, papers = 0, Counter(), set()
+        read, papers = 0, set()
+        rejected: Counter[str] = Counter()
         kept = []
         for shard in sorted((root / shard_dir).glob("*.jsonl")):
             digests.append(f"{shard.relative_to(root)}:{file_sha256(shard)}")
@@ -156,10 +158,11 @@ class MutationSource:
 
 def load_snapshot(spec: SourceSpec, base_dir: Path) -> MutationSource:
     """Verify the pinned sha256, then keep only licence-allowed train rows without duplicate latex."""
-    path = resolve_inside(base_dir, spec.path, ".jsonl")
+    path = resolve_inside(base_dir, cast("str", spec.path), ".jsonl")
     if (actual := file_sha256(path)) != spec.sha256:
         raise ValueError(f"snapshot sha256 mismatch: recipe pins {spec.sha256}, file is {actual}")
-    rows, seen, rejected = [], set(), Counter()
+    rows, seen = [], set()
+    rejected: Counter[str] = Counter()
     with path.open(encoding="utf-8") as fh:
         for lineno, line in enumerate(fh, 1):
             if not line.strip():
