@@ -1,0 +1,5 @@
+# Default typography weights for GlyphForge (D-18, D-19). Hand-set; corpus crops cannot supply font proportions.
+fonts: {cm: 55, lmodern: 15, newtx: 10, mathpazo: 7, stix2: 7, libertine: 6}
+sizes: {8: 3, 9: 7, 10: 35, 11: 25, 12: 30}
+column_cm: {8.5: 20, 12: 50, 15: 30}
+site_levels: {base: 60, script: 30, scriptscript: 10}
