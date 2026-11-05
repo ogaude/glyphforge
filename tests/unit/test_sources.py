@@ -140,3 +140,48 @@ def test_seed_set_site_budget(registry, seed_latex):
 @pytest.mark.parametrize("name", builtin_registry().names())
 def test_seed_set_passes_class_contract(registry, seed_latex, name):
     assert check_error_class(registry.get(name), seed_latex) == []
+
+
+def test_list_source_duplicate_check_is_linear():
+    import time
+
+    items = tuple(_f(f"x_{{{i}}}+y") for i in range(50_000))
+    t = time.perf_counter()
+    ListSource(items)
+    assert time.perf_counter() - t < 2
+
+
+def test_list_source_draw_class_aware_and_deterministic():
+    from glyphforge.rng import slot_rng
+
+    cls = builtin_registry().get("greek.upsilon_v")
+    src = ListSource((_f("a_{v}+b"), _f("x+y"), _f("v^2")))
+    got = {src.draw(cls, slot_rng(s, "source", 0), level=None, multiline=True).latex for s in range(20)}
+    assert got and got <= {"a_{v}+b", "v^2"}
+    assert src.draw(cls, slot_rng(1, "source", 0)) == src.draw(cls, slot_rng(1, "source", 0))
+    assert ListSource((_f("x+y"),)).draw(cls, slot_rng(1, "source", 0)) is None
+
+
+def test_draw_site_index_built_once():
+    from glyphforge.rng import slot_rng
+
+    calls = []
+
+    class Counting:
+        name, version = "t.count", "1"
+
+        def sites(self, latex):
+            calls.append(latex)
+            return ("s",) if "v" in latex else ()
+
+    src = ListSource((_f("v+1"), _f("x+y")))
+    src.draw(Counting(), slot_rng(1, "source", 0))
+    n = len(calls)
+    src.draw(Counting(), slot_rng(2, "source", 0))
+    assert len(calls) == n
+
+
+def test_list_source_is_a_draw_source():
+    from glyphforge.sources import DrawSource
+
+    assert isinstance(ListSource(builtin_seed()), DrawSource)

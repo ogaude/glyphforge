@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import random
 from collections.abc import Sequence
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, StrictStr, model_validator
 
@@ -15,6 +16,9 @@ LICENSES: dict[str, str] = {
     "CC-BY-3.0": "https://creativecommons.org/licenses/by/3.0/",
     "CC-BY-4.0": "https://creativecommons.org/licenses/by/4.0/",
 }
+if TYPE_CHECKING:
+    from glyphforge.errors.api import ErrorClass
+
 ENVS = ("equation*", "align*", "gather*")
 
 
@@ -54,3 +58,10 @@ class Source(Protocol):
     """Anything that supplies formulas to the pipeline."""
 
     def formulas(self) -> Sequence[Formula]: ...
+
+
+@runtime_checkable
+class DrawSource(Protocol):
+    """A class-aware formula supply: returns a formula containing at least one site of cls, or None."""
+
+    def draw(self, cls: ErrorClass, rng: random.Random, *, level: str | None = None, multiline: bool = False) -> Formula | None: ...
