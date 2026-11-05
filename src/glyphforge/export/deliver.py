@@ -16,13 +16,14 @@ import PIL
 from PIL import Image
 
 from glyphforge.degrade import apply_ops, degrade_ops
-from glyphforge.export.card import attribution_text, dataset_card
+from glyphforge.export.card import attribution_text, dataset_card, pick_pairs
 from glyphforge.export.glyphfix import control_glyphs_used, write_glyphfix
 from glyphforge.export.leak import LeakError, leak_check, load_blocklist
 from glyphforge.fileio import atomic_dir
-from glyphforge.recipe import SCHEMA_VERSION, ExportSpec
+from glyphforge.recipe import SCHEMA_VERSION, ExportSpec, Recipe, effective_styles
 from glyphforge.store import read_store
 
+GRID_PAIRS = 8
 LEAK_POLICY = "Exact canon formula, source formula or paper id match against the pinned blocklist fails the export; no exemptions"
 
 
@@ -61,10 +62,13 @@ def export_store(
     if hits := leak_check(samples, blocklist):
         raise LeakError(hits)
     degrade = None if spec.degrade is None else spec.degrade.model_dump(mode="json")
-    manifest = {
+    picked, missing = pick_pairs(samples, {s.font for s, _ in effective_styles(Recipe.model_validate(run["recipe"]))}, GRID_PAIRS)
+    manifest: dict = {
         "format": "glyphfix-trainset" if fmt == "glyphfix" else "hf-parquet", "n_rows": len(samples),
         "licenses": dict(sorted(Counter(s["licence"] for s in samples).items())), "roles": dict(sorted(Counter(s["role"] for s in samples).items())),
-        "sources": dict(sorted(Counter(s["source"] for s in samples).items())), "recipe_sha256": run.get("recipe_sha256"),
+        "sources": dict(sorted(Counter(s["source"] for s in samples).items())),
+        "error_classes": dict(sorted(Counter(s["error_class"] or "none" for s in samples).items())),
+        "fonts": dict(sorted(Counter(s["font"] for s in samples).items())), "recipe_sha256": run.get("recipe_sha256"),
         "generator_version": run.get("generator_version"), "image_digest": next(iter({s["image_digest"] for s in samples}), None),
         "export_spec": spec.model_dump(mode="json"), "export_spec_sha256": _sha(spec.model_dump(mode="json")), "export_spec_from_store": spec == frozen,
         "degrade": degrade, "degrade_sha256": None if degrade is None else _sha(degrade),
@@ -84,9 +88,20 @@ def export_store(
 
             from glyphforge.export.parquet import parquet_row, write_parquet
 
-            rows = (parquet_row(s, png, ops) for s, png, ops in delivered)
-            shards = write_parquet(tmp, rows, shard_bytes=spec.shard_mb * 2**20, row_group_rows=spec.row_group_rows)
-            manifest |= {"shards": shards, "pyarrow_version": pyarrow.__version__}
+            shards = write_parquet(tmp, (parquet_row(s, png, ops) for s, png, ops in delivered), shard_bytes=spec.shard_mb * 2**20, row_group_rows=spec.row_group_rows)
+            grid = []
+            for i, p in enumerate(picked):
+                paths = {k: f"assets/pair-{i:02d}-{k}.png" for k in ("error", "control")}
+                (tmp / "assets").mkdir(exist_ok=True)
+                (tmp / paths["error"]).write_bytes((store_dir / p["target"]["image"]).read_bytes())
+                (tmp / paths["control"]).write_bytes((store_dir / p["hard_negative"]["image"]).read_bytes())
+                grid.append({
+                    "error_class": p["target"]["error_class"], "font": p["target"]["font"], "target": paths["error"], "control": paths["control"],
+                    "target_label": p["target"]["label"], "control_label": p["hard_negative"]["label"],
+                })  # fmt: skip
+            manifest |= {
+                "shards": shards, "pyarrow_version": pyarrow.__version__, "grid": grid, "empty_cells": [f"{c}/{f}" for c, f in missing],
+            }
             (tmp / "README.md").write_text(dataset_card(run, manifest), encoding="utf-8")
         (tmp / "ATTRIBUTION.md").write_text(attribution_text(samples), encoding="utf-8")
         (tmp / "export_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")

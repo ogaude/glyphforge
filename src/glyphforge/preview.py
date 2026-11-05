@@ -6,12 +6,12 @@ import base64
 import json
 import tempfile
 from html import escape
-from itertools import zip_longest
 from pathlib import Path
 from typing import Literal
 
 from glyphforge import pipeline
 from glyphforge.degrade import apply_ops, degrade_ops
+from glyphforge.export.card import pick_pairs
 from glyphforge.recipe import DegradeSpec, Recipe, effective_styles, load_recipe
 from glyphforge.store import read_store
 
@@ -28,25 +28,15 @@ def preview_html(store_dir: Path, *, degrade: DegradeSpec | None | Literal["stor
     run, samples, _ = read_store(root)
     if degrade == "store":
         degrade = DegradeSpec.model_validate(d) if (d := run["recipe"]["export"].get("degrade")) else None
-    by_pair: dict[str, dict[str, dict]] = {}
-    for s in samples:
-        if s["control_kind"] == "pair":
-            by_pair.setdefault(s["pair_id"], {})[s["role"]] = s
-    cells: dict[tuple[str, str], list[dict[str, dict]]] = {}
-    for pid in sorted(by_pair, key=lambda p: by_pair[p]["target"]["sample_id"]):
-        t = by_pair[pid]["target"]
-        cells.setdefault((t["error_class"], t["font"]), []).append(by_pair[pid])
-    keys = sorted(cells)
-    picked = [p for rnd in zip_longest(*(cells[k] for k in keys)) for p in rnd if p is not None][:pairs]
     fonts = {s.font for s, _ in effective_styles(Recipe.model_validate(run["recipe"]))}
-    grid = {(c, f) for c in {k[0] for k in keys} for f in fonts}
-    missing = sorted(grid - set(keys))
+    picked, missing = pick_pairs(samples, fonts, pairs)
+    n_pairs = len({s["pair_id"] for s in samples if s["control_kind"] == "pair"})
 
     def png(s: dict) -> bytes:
         return (root / s["image"]).read_bytes()
 
     def row(key: str, target: dict | None, hard: dict, tag: str) -> str:
-        ops = degrade_ops(degrade, run["seed"], key) if degrade else None
+        ops = degrade_ops(degrade, run["seed"], key) if degrade else []
         images = [_img(png(s)) if s else "" for s in (target, hard)]
         deg = [f"<td>{_img(apply_ops(png(s), ops)) if s else ''}</td>" for s in (target, hard)] + [f"<td><code>{escape(json.dumps(ops))}</code></td>"]
         labels = "<br>".join(escape(s["label"]) for s in (target, hard) if s)
@@ -61,7 +51,7 @@ def preview_html(store_dir: Path, *, degrade: DegradeSpec | None | Literal["stor
     note = f"<p>not sampled: {escape(', '.join(f'{c}/{f}' for c, f in missing))}</p>" if missing else ""
     return (
         f"<!doctype html><html><head><meta charset='utf-8'><title>GlyphForge preview</title><style>{CSS}</style></head><body>"
-        f"<h1>{len(picked)} pairs from {len(by_pair)}</h1>{note}<table><tr>{''.join(f'<th>{h}</th>' for h in head)}</tr>{''.join(rows)}</table></body></html>"
+        f"<h1>{len(picked)} pairs from {n_pairs}</h1>{note}<table><tr>{''.join(f'<th>{h}</th>' for h in head)}</tr>{''.join(rows)}</table></body></html>"
     )
 
 
