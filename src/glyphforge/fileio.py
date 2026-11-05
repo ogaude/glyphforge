@@ -12,12 +12,26 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 
+def _umask() -> int:
+    """The process umask without the set-and-restore race (threads write concurrently); /proc first, os.umask round-trip as the fallback."""
+    try:
+        for line in Path("/proc/self/status").read_text().splitlines():
+            if line.startswith("Umask:"):
+                return int(line.split()[1], 8)
+    except OSError:
+        pass
+    mask = os.umask(0)
+    os.umask(mask)
+    return mask
+
+
 def atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(data)
+        os.chmod(tmp, 0o666 & ~_umask())
         os.replace(tmp, path)
     except BaseException:
         with contextlib.suppress(FileNotFoundError):
@@ -48,6 +62,7 @@ def atomic_dir(out: Path) -> Iterator[Path]:
     tmp = Path(tempfile.mkdtemp(dir=out.parent, prefix=f".{out.name}."))
     try:
         yield tmp
+        os.chmod(tmp, 0o777 & ~_umask())
         os.replace(tmp, out)
     except BaseException:
         shutil.rmtree(tmp, ignore_errors=True)

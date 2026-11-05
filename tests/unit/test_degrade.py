@@ -98,3 +98,14 @@ def test_non_gray_rejected():
     Image.new("RGB", (4, 4)).save(buf, format="PNG")
     with pytest.raises(ValueError):
         apply_ops(buf.getvalue(), [{"op": "blur", "sigma": 0.5}])
+
+
+def test_opspec_instances_get_the_same_defaults_and_cap_errors_as_dicts():
+    from pydantic import ValidationError
+
+    from glyphforge.recipe.schema import OpSpec
+
+    spec = DegradeSpec(blur=OpSpec(p=1.0))
+    assert (spec.blur.min, spec.blur.max) == DEGRADE_DEFAULTS["blur"] and spec == DegradeSpec(blur={"p": 1.0})
+    with pytest.raises(ValidationError):
+        DegradeSpec(blur=OpSpec(p=1, min=0, max=9))

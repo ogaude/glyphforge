@@ -137,6 +137,13 @@ def test_export_frozen_and_format(store, rdir, tmp_path, monkeypatch):
 def test_export_blocklist_resolves_against_cwd_without_recipe(store, tmp_path):
     res = _run("export", store, tmp_path / "o")
     assert res.exit_code == 2 and "blocklist not found" in res.stderr and _sha(FIX / "blocklist.jsonl") in res.stderr
+    assert "--recipe" in res.stderr
+
+
+@pytest.mark.parametrize("bad", ["bogus", "../../../escaped"])
+def test_export_rejects_unknown_format_and_writes_nothing(store, tmp_path, bad):
+    res = _run("export", store, tmp_path / "o", "--format", bad)
+    assert res.exit_code == 2 and not (tmp_path / "o").exists() and not (tmp_path.parent / "escaped").exists()
 
 
 def test_export_no_format(rdir, tmp_path, fake, monkeypatch):
@@ -161,7 +168,7 @@ def test_export_recipe_section_and_manifest(store, rdir, tmp_path):
 def test_export_leak_hit_and_sha_mismatch(store, rdir, tmp_path):
     bl = rdir / "blocklist.jsonl"
     rows = [json.dumps({"k": "formula", "v": canonical(s)}) for s in ("v", "v+a", "a_{v}+v", "b+v+c", "v-d", "e*v", "v+f", "2v+g", "h+v")]
-    bl.write_text("\n".join(rows) + "\n")
+    bl.write_text("\n".join([*rows, json.dumps({"k": "paper", "v": "9999.99999"})]) + "\n")
     leaky = _recipe(rdir, "l.yaml", sha=_sha(bl))
     res = _run("export", store, tmp_path / "o", "--recipe", leaky)
     print(res.stdout, res.stderr, res.exception)

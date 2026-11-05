@@ -8,7 +8,7 @@ import functools
 import json
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 from rich.console import Console
@@ -185,14 +185,16 @@ def build_app() -> typer.Typer:
         recipe: Annotated[
             Path | None, typer.Option("--recipe", help="Take only this file's export section instead of the store's frozen one.")
         ] = None,
-        fmt: Annotated[str | None, typer.Option("--format", help="glyphfix or parquet; default is the store's frozen format list.")] = None,
+        fmt: Annotated[
+            Literal["glyphfix", "parquet"] | None, typer.Option("--format", help="glyphfix or parquet; default is the store's frozen format list.")
+        ] = None,
         as_json: AsJson = False,
     ) -> None:
         """Export STORE to OUT/<format> with the leak gate always run first.
 
         Uses the store's frozen export section; --recipe takes only the export section of another file (recorded in the manifest). The
-        blocklist path resolves against the --recipe file's directory, else against the current directory; its pinned sha256 is always
-        verified. A leak hit prints the hit report and exits 1 with nothing written.
+        blocklist path resolves against the --recipe file's directory, else against the current directory (a store whose recipe sits
+        elsewhere needs --recipe); its pinned sha256 is always verified and an empty blocklist is refused. A leak hit prints the hit report and exits 1 with nothing written.
         """
         from glyphforge.export import export_store
         from glyphforge.recipe import load_recipe

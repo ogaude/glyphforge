@@ -99,7 +99,7 @@ def make_store(tmp_path):
         images = {k: v for _, im in parts for k, v in im.items()}
         ledger = [{k: s[k] for k in store.LEDGER_KEYS if k != "reason"} | {"reason": None} for s in samples]
         bl = tmp_path / "bl.jsonl"
-        bl.write_text("".join(json.dumps(r) + "\n" for r in [{"k": "paper", "v": "9999.99999"}, *blocklist]), "utf-8")
+        bl.write_text("".join(json.dumps(r) + "\n" for r in [{"k": "paper", "v": "9999.99999"}, {"k": "formula", "v": "Z_9 = 0"}, *blocklist]), "utf-8")
         pin = {"path": "bl.jsonl", "sha256": hashlib.sha256(bl.read_bytes()).hexdigest()}
         export = {"formats": ["glyphfix", "parquet"], "blocklist": pin, **spec}
         run = {

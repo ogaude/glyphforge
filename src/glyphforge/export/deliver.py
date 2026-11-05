@@ -23,7 +23,7 @@ from glyphforge.fileio import atomic_dir
 from glyphforge.recipe import SCHEMA_VERSION, ExportSpec
 from glyphforge.store import read_store
 
-LEAK_POLICY = "exact canon formula, source formula or paper id match against the pinned blocklist fails the export; no exemptions"
+LEAK_POLICY = "Exact canon formula, source formula or paper id match against the pinned blocklist fails the export; no exemptions"
 
 
 def _sha(obj) -> str:
@@ -46,6 +46,8 @@ def _deliver(store_dir: Path, samples: list[dict], spec: ExportSpec, seed: int) 
 def export_store(
     store_dir: Path, out_dir: Path, fmt: Literal["glyphfix", "parquet"], *, spec: ExportSpec | None = None, base_dir: Path | None = None
 ) -> dict:
+    if fmt not in ("glyphfix", "parquet"):
+        raise ValueError(f"export format must be 'glyphfix' or 'parquet', got {fmt!r}")
     store_dir, out_dir = Path(store_dir), Path(out_dir)
     run, samples, _ = read_store(store_dir)
     if run.get("schema_version") != SCHEMA_VERSION:
@@ -54,7 +56,9 @@ def export_store(
     spec = spec or frozen
     if spec.blocklist is None:
         raise ValueError("export needs export.blocklist (path + sha256); the leak gate has no skip")
-    if hits := leak_check(samples, load_blocklist(spec.blocklist, base_dir or Path.cwd())):
+    hint = "" if base_dir else "; the store's blocklist path is relative to the recipe directory: pass --recipe <recipe file> or export from that directory"
+    blocklist = load_blocklist(spec.blocklist, base_dir or Path.cwd(), hint=hint)
+    if hits := leak_check(samples, blocklist):
         raise LeakError(hits)
     degrade = None if spec.degrade is None else spec.degrade.model_dump(mode="json")
     manifest = {
@@ -64,7 +68,7 @@ def export_store(
         "generator_version": run.get("generator_version"), "image_digest": next(iter({s["image_digest"] for s in samples}), None),
         "export_spec": spec.model_dump(mode="json"), "export_spec_sha256": _sha(spec.model_dump(mode="json")), "export_spec_from_store": spec == frozen,
         "degrade": degrade, "degrade_sha256": None if degrade is None else _sha(degrade),
-        "blocklist": {"path": spec.blocklist.path, "sha256": spec.blocklist.sha256}, "leak_policy": LEAK_POLICY, "leak_hits": 0,
+        "blocklist": {"path": spec.blocklist.path, "sha256": spec.blocklist.sha256, "formulas": len(blocklist.formulas), "papers": len(blocklist.papers)}, "leak_policy": LEAK_POLICY, "leak_hits": 0,
         "pillow_version": PIL.__version__, "numpy_version": np.__version__, "zlib_version": zlib.ZLIB_RUNTIME_VERSION,
     }  # fmt: skip
     with atomic_dir(out_dir) as tmp:
