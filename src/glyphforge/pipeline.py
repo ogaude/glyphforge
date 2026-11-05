@@ -25,7 +25,10 @@ from glyphforge.recipe import SCHEMA_VERSION, Recipe, frozen_recipe, load_recipe
 from glyphforge.render import IMAGE_DIGEST, RenderInfrastructureError, load_bitmap, render_config, render_many
 from glyphforge.report import balance_report, scale_report
 from glyphforge.sources.grammar import TABLE_VERSION
-from glyphforge.store import JOURNAL, png_bytes, read_journal, write_round, write_store
+from glyphforge.store import JOURNAL, ImageDir, journal_image, png_bytes, read_journal, write_round, write_store
+
+# Slots drawn and rendered per render_many call within a round: bounds round memory without changing any draw (draws are slot-pure).
+SLOTS_PER_RENDER = 512
 
 
 def build_registry(recipe: Recipe) -> Registry:
@@ -62,7 +65,7 @@ class RunResult:
     warnings: list[str]
 
 
-def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path | None, rh: str, pad_px: int, images: dict[str, bytes]) -> dict:
+def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path | None, rh: str, pad_px: int, out_dir: Path) -> dict:
     """A store sample row (kept) or ledger row (dropped) for one label of a draft; ``c`` is set for an extra control."""
     f = c.formula if c else d.formula
     look = d.look
@@ -78,9 +81,7 @@ def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path
     if arr is None:
         raise RenderInfrastructureError("cached bitmap missing or unreadable for a rendered entry; delete the render cache entry and rerun")
     padded = np.pad(arr, pad_px, constant_values=255) if pad_px else arr
-    data = png_bytes(padded)
-    sha = hashlib.sha256(data).hexdigest()
-    images[sha] = data
+    sha = journal_image(out_dir, png_bytes(padded))
     del row["reason"]
     return row | {
         "authors": list(f.authors), "bitmap_sha256": res.bitmap_sha256, "class_version": d.slot.error_class.version,
@@ -95,11 +96,13 @@ def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path
 
 
 def _round(
-    open_slots: Sequence, attempt: int, ctx: DrawContext, recipe: Recipe, rh: str, cache: Path | None, max_parallel: int | None, batch_size: int
-) -> tuple[dict[int, list[dict]], list[dict], dict[str, bytes], list[tuple], int, int]:
-    """Draw and render every open slot once (one render_many per wrapper); a slot is kept only when all its rows pass QC.
+    open_slots: Sequence, attempt: int, ctx: DrawContext, recipe: Recipe, rh: str, cache: Path | None, max_parallel: int | None, batch_size: int,
+    out_dir: Path,
+) -> tuple[dict[int, list[dict]], list[dict], list[tuple], int, int]:
+    """Draw and render a chunk of open slots once (one render_many per wrapper); a slot is kept only when all its rows pass QC.
 
-    Returns (kept rows by slot, ledger rows, images, survival entries, slots without a drawable formula, alternates not rendered).
+    Kept PNGs go straight to the journal. Returns (kept rows by slot, ledger rows, survival entries, slots without a drawable formula,
+    alternates not rendered).
     """
     drafts = [d for s in open_slots if (d := draw_slot(s, attempt, ctx)) is not None]
     wanted = {
@@ -117,7 +120,7 @@ def _round(
             rendered = render_many([k[0] for k in keys], wrapper=w, style=[k[1] for k in keys], cache=cache, max_parallel=max_parallel, batch_size=batch_size)
             for (latex, style), r in zip(keys, rendered, strict=True):
                 results.setdefault((w, style), {})[latex] = r
-    kept, ledger, images, entries, not_rendered = {}, [], {}, [], 0
+    kept, ledger, entries, not_rendered = {}, [], [], 0
     pol, pad = recipe.qc.ambiguity, recipe.render.pad_px
     for d in drafts:
         res = results[d.wrapper, d.style]
@@ -132,12 +135,12 @@ def _round(
         ok, rows = all(p[3].keep for p in parts), []
         for c, role, label, v in parts:
             v = v if ok or not v.keep else replace(v, keep=False, reason="slot_partner_dropped")
-            row = _row(d, c, role, label, res[label], v, cache, rh, pad, images)
+            row = _row(d, c, role, label, res[label], v, cache, rh, pad, out_dir)
             (rows if v.keep else ledger).append(row)
             entries.append((f"{d.slot.error_class.name}@{d.slot.error_class.version}", d.look.style.font, v.reason, tuple(sorted(v.flags))))
         if ok:
             kept[d.slot.index] = rows
-    return kept, ledger, images, entries, len(open_slots) - len(drafts), not_rendered
+    return kept, ledger, entries, len(open_slots) - len(drafts), not_rendered
 
 
 def run(
@@ -167,7 +170,7 @@ def run(
     ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter)
 
     kept: dict[int, list[dict]] = {}
-    ledger, images, entries, no_draw, not_rendered, rounds = [], {}, [], 0, 0, 0
+    ledger, entries, no_draw, not_rendered, rounds = [], [], 0, 0, 0
     # Everything the rounds depend on besides the recipe: a resume under a different generator, rules, renderer, token counter or
     # source file content is refused instead of mixing rounds.
     pins = [{"kind": k} | ({"sha256": sha} if (sha := getattr(src, "sha256", None)) else {}) for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)]
@@ -180,17 +183,18 @@ def run(
     for b in done:
         kept |= b["kept"]
         ledger += b["ledger"]
-        images |= b["images"]
         entries += b["entries"]
         no_draw, not_rendered, rounds = no_draw + b["no_draw"], not_rendered + b["not_rendered"], rounds + 1
     for attempt in range(len(done), recipe.composition.attempt_cap):
         if not (todo := [s for s in slots if s.index not in kept]):
             break
-        got, led, imgs, ent, nd, nr = _round(todo, attempt, ctx, recipe, rh, cache, max_parallel, batch_size)
-        write_round(out_dir, header, attempt, got, led, imgs, ent, nd, nr)
+        got, led, ent, nd, nr = {}, [], [], 0, 0
+        for lo in range(0, len(todo), SLOTS_PER_RENDER):
+            g, ld, en, n1, n2 = _round(todo[lo : lo + SLOTS_PER_RENDER], attempt, ctx, recipe, rh, cache, max_parallel, batch_size, out_dir)
+            got, led, ent, nd, nr = got | g, led + ld, ent + en, nd + n1, nr + n2
+        write_round(out_dir, header, attempt, got, led, ent, nd, nr)
         kept |= got
         ledger += led
-        images |= imgs
         entries += ent
         no_draw, not_rendered, rounds = no_draw + nd, not_rendered + nr, rounds + 1
 
@@ -230,7 +234,7 @@ def run(
         "survival": (surv := survival(entries, [(cid, f) for cid, c in zip(class_ids, classes, strict=True) if quotas.get(c.name) for f in fonts])),
         "control_glyphs_used": control_glyphs_used(samples),
     }  # fmt: skip
-    write_store(out_dir, samples, images, ledger, run_info)
+    write_store(out_dir, samples, ImageDir(out_dir / JOURNAL / "images", (r["image_sha256"] for r in samples)), ledger, run_info)
     if "glyphfix" in recipe.export.formats:
         export_glyphfix(out_dir, out_dir / "glyphfix")
     shutil.rmtree(out_dir / JOURNAL, ignore_errors=True)

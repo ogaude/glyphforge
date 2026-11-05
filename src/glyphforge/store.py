@@ -9,7 +9,7 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -35,6 +35,37 @@ def png_bytes(arr: np.ndarray) -> bytes:
     buf = io.BytesIO()
     img.save(buf, format="PNG", compress_level=6)
     return buf.getvalue()
+
+
+class ImageDir(Mapping[str, bytes]):
+    """Read-on-access view of ``<sha>.png`` files in one directory, so write_store never holds the whole dataset's PNGs in memory."""
+
+    def __init__(self, root: Path, shas: Iterable[str]) -> None:
+        self.root, self.shas = Path(root), tuple(dict.fromkeys(shas))
+        self._set = frozenset(self.shas)
+
+    def __getitem__(self, sha: str) -> bytes:
+        if sha not in self._set:
+            raise KeyError(sha)
+        path = self.root / f"{sha}.png"
+        return path.read_bytes() if path.is_file() else b""
+
+    def __contains__(self, sha: object) -> bool:
+        return sha in self._set
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.shas)
+
+    def __len__(self) -> int:
+        return len(self.shas)
+
+
+def journal_image(out_dir: Path, data: bytes) -> str:
+    """Store one kept PNG in the journal (content-addressed, before its round file commits it) and return its sha256."""
+    sha = hashlib.sha256(data).hexdigest()
+    if not (path := Path(out_dir) / JOURNAL / "images" / f"{sha}.png").exists():
+        _atomic_write(path, data)
+    return sha
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -90,21 +121,18 @@ def read_store(out_dir: Path) -> tuple[dict, list[dict], list[dict]]:
 
 
 def write_round(
-    out_dir: Path, header: dict, round_no: int, kept: Mapping[int, list[dict]], ledger: Sequence[dict], images: Mapping[str, bytes],
-    entries: Sequence[tuple], no_draw: int, not_rendered: int,
+    out_dir: Path, header: dict, round_no: int, kept: Mapping[int, list[dict]], ledger: Sequence[dict], entries: Sequence[tuple],
+    no_draw: int, not_rendered: int,
 ) -> None:
-    """Journal one finished round: images first, then the round file as the commit marker."""
+    """Journal one finished round; its images are already in the journal (journal_image), so the round file is the commit marker."""
     root = Path(out_dir) / JOURNAL
-    for sha, data in images.items():
-        if not (path := root / "images" / f"{sha}.png").exists():
-            _atomic_write(path, data)
     body = {"header": header, "round": round_no, "kept": {str(i): r for i, r in kept.items()}, "ledger": list(ledger),
             "entries": [list(e) for e in entries], "no_draw": no_draw, "not_rendered": not_rendered}  # fmt: skip
     _atomic_write(root / f"round-{round_no:03d}.json", json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8"))
 
 
 def read_journal(out_dir: Path, header: dict) -> list[dict]:
-    """Committed rounds in order, with images loaded and entries as tuples; foreign or damaged journals raise ValueError."""
+    """Committed rounds in order, with entries as tuples; images are verified, not loaded. Foreign or damaged journals raise ValueError."""
     root, rounds = Path(out_dir) / JOURNAL, []
     for path in sorted(root.glob("round-[0-9][0-9][0-9].json")):
         body = json.loads(path.read_text(encoding="utf-8"))
@@ -112,13 +140,10 @@ def read_journal(out_dir: Path, header: dict) -> list[dict]:
             raise ValueError(f"journal belongs to a different recipe: {path} header differs from this run")
         body["kept"] = {int(i): r for i, r in body["kept"].items()}
         body["entries"] = [(*e[:3], tuple(e[3])) for e in body["entries"]]
-        body["images"] = {}
-        for row in [r for rows in body["kept"].values() for r in rows]:
-            sha = row["image_sha256"]
-            data = (root / "images" / f"{sha}.png").read_bytes() if (root / "images" / f"{sha}.png").is_file() else b""
-            if hashlib.sha256(data).hexdigest() != sha:
+        images = ImageDir(root / "images", (r["image_sha256"] for rows in body["kept"].values() for r in rows))
+        for sha in images:
+            if hashlib.sha256(images[sha]).hexdigest() != sha:
                 raise ValueError(f"journal image {sha} is missing or does not match its name")
-            body["images"][sha] = data
         rounds.append(body)
     if [b["round"] for b in rounds] != list(range(len(rounds))):
         raise ValueError("journal rounds are not consecutive")

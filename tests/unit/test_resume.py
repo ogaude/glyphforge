@@ -4,7 +4,7 @@ import pytest
 
 from glyphforge import pipeline
 from glyphforge.pipeline import run
-from glyphforge.store import JOURNAL, read_journal, write_round
+from glyphforge.store import JOURNAL, journal_image, read_journal, write_round
 
 RECIPE = {
     "seed": 3,
@@ -55,6 +55,15 @@ def test_resumed_run_is_byte_identical(tmp_path, tree, kill):
     kill(None)
     _go(tmp_path, "b")
     assert tree(tmp_path / "b") == ta
+
+
+def test_chunked_rounds_are_byte_identical(tmp_path, tree, fake, monkeypatch):
+    """WR-04: rendering a round in slot chunks changes no byte of the store."""
+    _go(tmp_path, "a")
+    monkeypatch.setattr(pipeline, "SLOTS_PER_RENDER", 1)
+    n = len(fake)
+    _go(tmp_path, "b")
+    assert len(fake) > n + 1 and tree(tmp_path / "b") == tree(tmp_path / "a")
 
 
 def test_interrupt_before_first_commit_equals_plain_run(tmp_path, tree, kill):
@@ -131,9 +140,10 @@ def test_journal_round_trip(tmp_path):
 
     sha = hashlib.sha256(png).hexdigest()
     row = {"image_sha256": sha}
-    write_round(tmp_path, header, 0, {3: [row]}, [{"a": 1}], {sha: png}, [("c@1", "cm", None, ("flag",))], 2, 1)
+    assert journal_image(tmp_path, png) == sha
+    write_round(tmp_path, header, 0, {3: [row]}, [{"a": 1}], [("c@1", "cm", None, ("flag",))], 2, 1)
     (b,) = read_journal(tmp_path, header)
-    assert b["kept"] == {3: [row]} and b["images"] == {sha: png} and b["entries"] == [("c@1", "cm", None, ("flag",))]
+    assert b["kept"] == {3: [row]} and "images" not in b and b["entries"] == [("c@1", "cm", None, ("flag",))]
     assert (b["no_draw"], b["not_rendered"], b["ledger"]) == (2, 1, [{"a": 1}])
     with pytest.raises(ValueError, match="different recipe"):
         read_journal(tmp_path, header | {"slots_planned": 2})
