@@ -1,5 +1,6 @@
 """End-to-end runs through the digest-pinned sandbox: families, exact gate, flags, ledger, zero-yield, export load, user classes."""
 
+import hashlib
 import socket
 from pathlib import Path
 
@@ -15,6 +16,11 @@ from glyphforge.store import read_store
 
 pytestmark = [pytest.mark.docker, pytest.mark.skipif(not docker.docker_available(), reason="pinned texlive image not available")]
 
+FIXTURES = Path(__file__).parents[1] / "fixtures"
+EXPORT = {
+    "formats": ["glyphfix"],
+    "blocklist": {"path": "blocklist.jsonl", "sha256": hashlib.sha256((FIXTURES / "blocklist.jsonl").read_bytes()).hexdigest()},
+}
 FAMILIES = ("primes", "greek", "digits", "decorations", "alphabets")
 FONTS = tuple(sorted({s.font for s in DEFAULT_STYLES}))
 
@@ -32,7 +38,7 @@ def _inline(formulas, classes, **kw):
 @pytest.fixture(scope="module")
 def default_run(tmp_path_factory):
     base = tmp_path_factory.mktemp("default_run")
-    result = run({}, base / "out", cache=base / "cache", max_parallel=2)
+    result = run({"export": EXPORT}, base / "out", cache=base / "cache", max_parallel=2, base_dir=FIXTURES)
     return (base / "out", *read_store(base / "out"), result)
 
 
@@ -49,7 +55,7 @@ def test_every_family_end_to_end(default_run):
         for v in by_pair.values()
     )
     # labels are the class output verbatim: re-plan the recipe and compare
-    recipe = Recipe()
+    recipe = Recipe(export=EXPORT)
     reg = pipeline.build_registry(recipe)
     classes = resolve_classes(reg, recipe.classes)
     rh = run_json["recipe_sha256"]
@@ -131,15 +137,15 @@ def test_glyphfix_export_loads(default_run):
     out, run_json, samples, _, _ = default_run
     data = pytest.importorskip("glyphfix_math.train.data")
     trainset = pytest.importorskip("glyphfix_math.trainset")
-    rows = data.read_trainset(out / "glyphfix" / "trainset.jsonl")
+    rows = data.read_trainset(out / "export" / "glyphfix" / "trainset.jsonl")
     assert len(rows) == len(samples)
     for row in rows:
-        data.load_image(row, out / "glyphfix").close()
+        data.load_image(row, out / "export" / "glyphfix").close()
     group = trainset.summarize(rows)["counts"]["group"]
     assert group["error"] == group["control"] > 0
     import json
 
-    manifest = json.loads((out / "glyphfix" / "export_manifest.json").read_text())
+    manifest = json.loads((out / "export" / "glyphfix" / "export_manifest.json").read_text())
     assert manifest["control_glyphs_used"] == run_json["control_glyphs_used"]
 
 

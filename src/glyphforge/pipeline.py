@@ -16,7 +16,7 @@ import PIL
 from glyphforge import __version__
 from glyphforge.canon import canon_versions, canonical
 from glyphforge.errors import BUILTIN_MODULES, DEFAULT_REGISTRY, ErrorClass, Registry, builtin_registry
-from glyphforge.export import control_glyphs_used, export_glyphfix
+from glyphforge.export import control_glyphs_used, export_store
 from glyphforge.pixels import PIXEL_POLICY_VERSION
 from glyphforge.plan import TOKEN_FIT, build_context, draw_slot, shortfall
 from glyphforge.plan.draw import Control, Draft, DrawContext
@@ -153,6 +153,7 @@ def run(
     batch_size: int = 100,
     base_dir: Path | None = None,
     token_counter: Callable[[str], int] | None = None,
+    export: bool = True,
 ) -> RunResult:
     """Run a recipe end to end into ``out_dir``; the output depends on the recipe only, never on ``max_parallel`` or ``batch_size``."""
     if isinstance(recipe, str | Path):
@@ -236,7 +237,7 @@ def run(
         "control_glyphs_used": control_glyphs_used(samples),
     }  # fmt: skip
     write_store(out_dir, samples, ImageDir(out_dir / JOURNAL / "images", (r["image_sha256"] for r in samples)), ledger, run_info)
-    if "glyphfix" in recipe.export.formats:
-        export_glyphfix(out_dir, out_dir / "glyphfix")
     shutil.rmtree(out_dir / JOURNAL, ignore_errors=True)
+    for fmt in recipe.export.formats if export else ():
+        export_store(out_dir, out_dir / "export" / fmt, fmt, spec=recipe.export, base_dir=base_dir)
     return RunResult(out_dir, rh, len(slots), len(samples), len(ledger), surv, short, balance["warnings"])
