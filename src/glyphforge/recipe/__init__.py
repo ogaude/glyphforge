@@ -2,17 +2,36 @@
 
 from __future__ import annotations
 
-from glyphforge.recipe.load import frozen_recipe, load_recipe, recipe_sha256, to_style
-from glyphforge.recipe.schema import DEFAULT_STYLES, SCHEMA_VERSION, ExportSpec, QCSpec, Recipe, SourceSpec, StyleSpec
+from glyphforge.recipe.load import effective_styles, frozen_recipe, load_recipe, recipe_sha256, to_style
+from glyphforge.recipe.schema import (
+    DEFAULT_STYLES,
+    SCHEMA_VERSION,
+    BoundsSpec,
+    CompositionSpec,
+    ExportSpec,
+    QCSpec,
+    Recipe,
+    RenderSpec,
+    SourceSpec,
+    StructureSpec,
+    StyleSpec,
+    TypographySpec,
+)
 
 __all__ = [
     "DEFAULT_STYLES",
     "SCHEMA_VERSION",
+    "BoundsSpec",
+    "CompositionSpec",
     "ExportSpec",
     "QCSpec",
     "Recipe",
+    "RenderSpec",
     "SourceSpec",
+    "StructureSpec",
     "StyleSpec",
+    "TypographySpec",
+    "effective_styles",
     "frozen_recipe",
     "load_recipe",
     "recipe_sha256",

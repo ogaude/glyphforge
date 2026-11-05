@@ -43,9 +43,28 @@ def recipe_sha256(frozen: dict) -> str:
     return hashlib.sha256(json.dumps(frozen, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
-def to_style(spec: StyleSpec, extra_packages: Iterable[str] = ()) -> Style:
-    """Map a StyleSpec (plus class-declared packages) to a Style; preamble lines are built here, never taken from recipe text."""
+def effective_styles(recipe: Recipe) -> tuple[tuple[StyleSpec, float], ...]:
+    """Weighted styles: explicit recipe styles, else fonts x sizes from the typography weights (sorted keys, zero weights omitted)."""
+    if recipe.styles is not None:
+        return tuple((s, s.weight) for s in recipe.styles)
+    t = recipe.typography
+    return tuple(
+        (StyleSpec(name=f"{f}-{z}pt", font=f, size=z, packages=t.packages, weight=t.fonts[f] * t.sizes[z]), t.fonts[f] * t.sizes[z])
+        for f in sorted(t.fonts)
+        for z in sorted(t.sizes)
+        if t.fonts[f] > 0 and t.sizes[z] > 0
+    )
+
+
+def to_style(spec: StyleSpec, extra_packages: Iterable[str] = (), column_cm: float | None = None) -> Style:
+    """Map a StyleSpec (plus class-declared packages) to a Style; preamble lines are built here, never taken from recipe text.
+
+    ``column_cm`` is validated recipe config (a float), appended as a text-width geometry override.
+    """
     pkgs = sorted(set(spec.packages) | set(extra_packages))
     if bad := [p for p in pkgs if not re.fullmatch(PACKAGE_RE, p)]:
         raise ValueError(f"invalid package names: {bad}")
-    return Style(spec.font, spec.size, tuple(rf"\usepackage{{{p}}}" for p in pkgs))
+    extra = tuple(rf"\usepackage{{{p}}}" for p in pkgs)
+    if column_cm is not None:
+        extra += (rf"\geometry{{left=1cm,top=1cm,text={{{column_cm:g}cm,17cm}}}}",)
+    return Style(spec.font, spec.size, extra)
