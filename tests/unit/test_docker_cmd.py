@@ -7,7 +7,8 @@ import pytest
 from glyphforge import resources
 from glyphforge.render import docker
 
-GM_PREAMBLE = Path("/mnt/datas/Transfer/KarbotiumLabs/projects/glyphfix-math/src/glyphfix_math/preamble.tex")
+GM_ROOT = Path(os.environ.get("GLYPHFORGE_GLYPHFIX_ROOT") or Path(__file__).resolve().parents[3] / "glyphfix-math")
+GM_PREAMBLE = GM_ROOT / "src/glyphfix_math/preamble.tex"
 DIGEST = "sha256:0f4884ca7d287f47ab466d2dd405d4c901c576585363f628863a7ca7eea21301"
 
 
