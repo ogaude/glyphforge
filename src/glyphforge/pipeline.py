@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -24,7 +25,7 @@ from glyphforge.recipe import SCHEMA_VERSION, Recipe, frozen_recipe, load_recipe
 from glyphforge.render import IMAGE_DIGEST, RenderInfrastructureError, load_bitmap, render_config, render_many
 from glyphforge.report import balance_report, scale_report
 from glyphforge.sources.grammar import TABLE_VERSION
-from glyphforge.store import png_bytes, write_store
+from glyphforge.store import JOURNAL, png_bytes, read_journal, write_round, write_store
 
 
 def build_registry(recipe: Recipe) -> Registry:
@@ -167,10 +168,19 @@ def run(
 
     kept: dict[int, list[dict]] = {}
     ledger, images, entries, no_draw, not_rendered, rounds = [], {}, [], 0, 0, 0
-    for attempt in range(recipe.composition.attempt_cap):
+    header = {"recipe_sha256": rh, "schema_version": SCHEMA_VERSION, "slots_planned": len(slots)}
+    done = read_journal(out_dir, header) if (out_dir / JOURNAL).is_dir() else []
+    for b in done:
+        kept |= b["kept"]
+        ledger += b["ledger"]
+        images |= b["images"]
+        entries += b["entries"]
+        no_draw, not_rendered, rounds = no_draw + b["no_draw"], not_rendered + b["not_rendered"], rounds + 1
+    for attempt in range(len(done), recipe.composition.attempt_cap):
         if not (todo := [s for s in slots if s.index not in kept]):
             break
         got, led, imgs, ent, nd, nr = _round(todo, attempt, ctx, recipe, rh, cache, max_parallel, batch_size)
+        write_round(out_dir, header, attempt, got, led, imgs, ent, nd, nr)
         kept |= got
         ledger += led
         images |= imgs
@@ -216,4 +226,5 @@ def run(
     write_store(out_dir, samples, images, ledger, run_info)
     if "glyphfix" in recipe.export.formats:
         export_glyphfix(out_dir, out_dir / "glyphfix")
+    shutil.rmtree(out_dir / JOURNAL, ignore_errors=True)
     return RunResult(out_dir, rh, len(slots), len(samples), len(ledger), surv, short, balance["warnings"])

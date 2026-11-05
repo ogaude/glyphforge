@@ -16,13 +16,10 @@ from glyphforge import pipeline
 from glyphforge.errors import ConfusionPair, builtin_registry
 from glyphforge.pipeline import build_registry, resolve_classes, run
 from glyphforge.recipe import Recipe
-from glyphforge.render import RenderResult, cache_key
-from glyphforge.render.cache import _cache_put
 from glyphforge.store import LEDGER_KEYS, SAMPLE_KEYS, read_store
 
 REG = builtin_registry()
 VS = ["a_{v}+v", "b+v+c", "v-d", "e*v", "v+f", "2v+g", "h+v"]
-STRIP_TAG = re.compile(r"\n\\tag\{\d+\}$")
 
 
 def _recipe(formulas, classes, **kw):
@@ -36,40 +33,6 @@ def _recipe(formulas, classes, **kw):
         **kw,
     }
 
-
-def _install(monkeypatch, strip_tag):
-    calls = []
-
-    def render(latex_list, *, style=None, cache=None, max_parallel=None, batch_size=100, wrapper="display"):
-        calls.append((wrapper, list(zip(latex_list, style, strict=True))))
-        out = []
-        for latex, s in zip(latex_list, style, strict=True):
-            key = cache_key(latex, wrapper=wrapper, style=s)
-            if "\\fail" in latex:
-                res = RenderResult(key, "compile-failed", None, None, "!")
-                _cache_put(cache, res)
-            else:
-                shown = STRIP_TAG.sub("", latex) if strip_tag else latex
-                digest = hashlib.sha256((wrapper + shown.replace("\\bm", "\\boldsymbol") + s.preamble_sha256).encode()).digest()
-                arr = np.tile(np.frombuffer(digest, dtype=np.uint8).reshape(4, 8), (4, 4))
-                res = RenderResult(key, "rendered", arr.shape, hashlib.sha256(arr.tobytes()).hexdigest())
-                _cache_put(cache, res, arr)
-            out.append(res)
-        return out
-
-    monkeypatch.setattr(pipeline, "render_many", render)
-    return calls
-
-
-@pytest.fixture
-def fake(monkeypatch):
-    """Stand-in for render_many: bitmap derived from wrapper, latex (with \\bm folded into \\boldsymbol) and style."""
-    return _install(monkeypatch, False)
-
-
-@pytest.fixture
-def invisible_tag(monkeypatch):
-    return _install(monkeypatch, True)
 
 
 def _go(tmp_path, recipe, name="out", **kw):
@@ -108,10 +71,6 @@ def test_resolve_classes():
         resolve_classes(REG, ["greek.upsilon_vv"])
     with pytest.raises(ValueError, match="duplicate"):
         resolve_classes(REG, ["greek.upsilon_v"] * 2)
-
-
-def _tree(root: Path) -> dict[str, bytes]:
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
 
 
 def test_exact_quotas_and_run_json(tmp_path, fake):
@@ -275,11 +234,11 @@ def test_omicron_uses_lgrmath_style_and_font_cells(tmp_path, fake):
     assert set(r.survival["cells"]) == {"greek.omicron_o@1|cm", "greek.omicron_o@1|libertine"} and run_info["styles"]["lib"]["preamble_sha256"]
 
 
-def test_byte_identical_across_workers_batches_and_no_paths(tmp_path, fake):
+def test_byte_identical_across_workers_batches_and_no_paths(tmp_path, fake, tree):
     recipe = _recipe(VS + ["f'(t)=g(t)"], ["greek.upsilon_v", "primes.prime_l"], composition={"total": 10, "hard_negative_ratio": 1.5})
     run(recipe, tmp_path / "a", cache=tmp_path / "ca", max_parallel=1, batch_size=2)
     run(recipe, tmp_path / "b", cache=tmp_path / "cb", max_parallel=3, batch_size=100)
-    ta, tb = _tree(tmp_path / "a"), _tree(tmp_path / "b")
+    ta, tb = tree(tmp_path / "a"), tree(tmp_path / "b")
     assert ta == tb and ta
     for blob in ta.values():
         assert str(tmp_path).encode() not in blob and str(Path.home()).encode() not in blob
