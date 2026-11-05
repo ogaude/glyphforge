@@ -11,3 +11,6 @@ build/
 data/snapshots/
 recipes/source/
 data/runs/
+.planning/
+CLAUDE.md
+SEED.md
