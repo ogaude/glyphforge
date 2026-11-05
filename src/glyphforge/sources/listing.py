@@ -19,6 +19,7 @@ from glyphforge.sources.base import Formula
 if TYPE_CHECKING:  # recipe.schema imports sources.base, so a runtime import here would be circular
     from glyphforge.errors.api import ErrorClass
     from glyphforge.recipe.schema import SourceSpec
+    from glyphforge.sources.grammar import GrammarSource
     from glyphforge.sources.mutation import MutationSource
 
 SEED_LICENCE = "CC0-1.0"
@@ -73,12 +74,16 @@ def builtin_seed() -> tuple[Formula, ...]:
     return tuple(Formula(**entry, licence=SEED_LICENCE) for entry in data["formulas"])
 
 
-def load_source(spec: SourceSpec, base_dir: Path) -> ListSource | MutationSource:
+def load_source(spec: SourceSpec, base_dir: Path) -> ListSource | MutationSource | GrammarSource:
     """Build the source a recipe names; file sources must be .jsonl files inside ``base_dir``."""
     if spec.kind == "builtin":
         return ListSource(builtin_seed())
     if spec.kind == "inline":
         return ListSource(spec.formulas)
+    if spec.kind == "grammar":
+        from glyphforge.sources.grammar import GrammarSource  # grammar imports plan.bounds
+
+        return GrammarSource(spec.domains)
     if spec.kind == "mutation":
         from glyphforge.sources.mutation import load_snapshot  # mutation imports this module's helpers
 
