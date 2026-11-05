@@ -28,7 +28,8 @@ POOLS = (
     ("v1", "data/corpus/shards/records", "1", "train", "data/catalog/train_dev.jsonl", "train"),
     ("v11", "data/corpus_v11/shards/records", "2", "train_extra", "data/corpus_v11/catalog/batch-*.jsonl", "train_extra"),
 )
-_NUMBERING = re.compile(r"\\(?:label|tag|nonumber)(?![A-Za-z])")
+# \notag would leave an invisible label token; \eqno/\leqno render a visible number that collides with a numbered look's \tag
+_NUMBERING = re.compile(r"\\(?:label|tag|nonumber|notag|eqno|leqno)(?![A-Za-z])")
 _MIN_AREA = 65_536  # Qwen2-VL smart_resize minimum pixels
 _MIB = 1 << 20
 

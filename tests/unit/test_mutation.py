@@ -43,6 +43,10 @@ def root(tmp_path):
             _row("p1", "c=d", "train", "gather"),
             _row("p1", "e=f", "train", "multline"),
             _row("p1", r"g=h\label{x}", "train"),
+            _row("p1", r"u=v\notag", "train"),
+            _row("p1", r"u=w\eqno(1)", "train"),
+            _row("p1", r"u=y \leqno{(2)}", "train"),
+            _row("p1", r"u=z\eqnotag", "train"),
             _row("p1", r"\foo{", "train"),
             _row("p1", "s=t", "dev"),
             _row("p1", "dup+1", "train"),
@@ -75,14 +79,14 @@ def test_build_snapshot_gates_and_contract(root, tmp_path):
     assert all(tuple(r) == CONTRACT_KEYS and r["split"] == "train" for r in rows)
     assert rows == sorted(rows, key=lambda r: (r["paper_id"], r["latex"], r["env"]))
     by = {r["latex"]: r for r in rows}
-    assert set(by) == {"a_{v}+b", "x^2", "a=b", "c=d", "dup+1", "m=n", "k=l"}
+    assert set(by) == {"a_{v}+b", "x^2", "a=b", "c=d", "dup+1", "m=n", "k=l", r"u=z\eqnotag"}
     assert [by[k]["env"] for k in ("x^2", "a=b", "c=d")] == ["equation*", "align*", "gather*"]
     assert by["k=l"]["authors"] == ["Author q1"]
     assert meta["sha256"] == hashlib.sha256(out.read_bytes()).hexdigest()
     assert json.loads(out.with_suffix(".meta.json").read_text()) == meta
     p = meta["pools"]
-    assert p["v1"]["read"] == 14 and p["v1"]["builder_version"] == "1" and p["v11"]["builder_version"] == "2"
-    assert p["v1"]["rejected"] == {"env": 1, "numbering": 1, "invalid_formula": 1, "split": 2, "quarantined": 1, "no_catalog": 1}
+    assert p["v1"]["read"] == 18 and p["v1"]["builder_version"] == "1" and p["v11"]["builder_version"] == "2"
+    assert p["v1"]["rejected"] == {"env": 1, "numbering": 4, "invalid_formula": 1, "split": 2, "quarantined": 1, "no_catalog": 1}
     assert p["v11"]["rejected"] == {"split": 3}
     for q in p.values():
         assert q["rows"] + sum(q["rejected"].values()) == q["read"]
@@ -174,4 +178,4 @@ def test_snapshot_cli(root, tmp_path, monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         main()
     out = capsys.readouterr().out
-    assert exc.value.code == 0 and "sha256 " in out and "rows 8" in out
+    assert exc.value.code == 0 and "sha256 " in out and "rows 9" in out
