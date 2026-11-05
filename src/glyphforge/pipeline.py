@@ -29,6 +29,8 @@ from glyphforge.store import JOURNAL, ImageDir, journal_image, png_bytes, read_j
 
 # Slots drawn and rendered per render_many call within a round: bounds round memory without changing any draw (draws are slot-pure).
 SLOTS_PER_RENDER = 512
+# Rendered formulas per second per worker, rough; Phase 1 bench_render: 22-26/s at batch 100-200, cold cache.
+RENDER_JOBS_PER_S = 20.0
 
 
 def build_registry(recipe: Recipe) -> Registry:
@@ -96,17 +98,9 @@ def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path
     }  # fmt: skip
 
 
-def _round(
-    open_slots: Sequence, attempt: int, ctx: DrawContext, recipe: Recipe, rh: str, cache: Path | None, max_parallel: int | None, batch_size: int,
-    out_dir: Path,
-) -> tuple[dict[int, list[dict]], list[dict], list[tuple], int, int]:
-    """Draw and render a chunk of open slots once (one render_many per wrapper); a slot is kept only when all its rows pass QC.
-
-    Kept PNGs go straight to the journal. Returns (kept rows by slot, ledger rows, survival entries, slots without a drawable formula,
-    alternates not rendered).
-    """
-    drafts = [d for s in open_slots if (d := draw_slot(s, attempt, ctx)) is not None]
-    wanted = {
+def render_jobs(drafts: Sequence[Draft]) -> dict[str, dict[tuple, None]]:
+    """The unique (latex, style) render set per wrapper for drafts: targets, hard negatives, alternates and extra controls."""
+    return {
         w: dict.fromkeys(
             (x, d.style)
             for d in drafts
@@ -115,10 +109,32 @@ def _round(
         )
         for w in ("display", "line")
     }  # fmt: skip
+
+
+def _round(
+    open_slots: Sequence,
+    attempt: int,
+    ctx: DrawContext,
+    recipe: Recipe,
+    rh: str,
+    cache: Path | None,
+    max_parallel: int | None,
+    batch_size: int,
+    out_dir: Path,
+) -> tuple[dict[int, list[dict]], list[dict], list[tuple], int, int]:
+    """Draw and render a chunk of open slots once (one render_many per wrapper); a slot is kept only when all its rows pass QC.
+
+    Kept PNGs go straight to the journal. Returns (kept rows by slot, ledger rows, survival entries, slots without a drawable formula,
+    alternates not rendered).
+    """
+    drafts = [d for s in open_slots if (d := draw_slot(s, attempt, ctx)) is not None]
+    wanted = render_jobs(drafts)
     results: dict[tuple, dict] = {}
     for w, keys in wanted.items():
         if keys:
-            rendered = render_many([k[0] for k in keys], wrapper=w, style=[k[1] for k in keys], cache=cache, max_parallel=max_parallel, batch_size=batch_size)
+            rendered = render_many(
+                [k[0] for k in keys], wrapper=w, style=[k[1] for k in keys], cache=cache, max_parallel=max_parallel, batch_size=batch_size
+            )
             for (latex, style), r in zip(keys, rendered, strict=True):
                 results.setdefault((w, style), {})[latex] = r
     kept, ledger, entries, not_rendered = {}, [], [], 0
@@ -144,6 +160,62 @@ def _round(
     return kept, ledger, entries, len(open_slots) - len(drafts), not_rendered
 
 
+def _prepare(recipe: Recipe | Mapping | str | Path, base_dir: Path | None, token_counter: Callable[[str], int] | None) -> tuple:
+    """Resolve a recipe and build its registry, classes, frozen form, hash, draw context, slots and quotas (shared by run and plan_run)."""
+    if isinstance(recipe, str | Path):
+        base_dir = base_dir or Path(recipe).resolve().parent
+        recipe = load_recipe(recipe)
+    elif not isinstance(recipe, Recipe):
+        recipe = Recipe.model_validate(recipe)
+    base_dir = base_dir or Path.cwd()
+    reg = build_registry(recipe)
+    classes = resolve_classes(reg, recipe.classes)
+    class_ids = [f"{c.name}@{c.version}" for c in classes]
+    frozen = frozen_recipe(recipe, class_ids)
+    rh = recipe_sha256(frozen)
+    ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter)
+    return recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas
+
+
+def plan_run(
+    recipe: Recipe | Mapping | str | Path,
+    *,
+    base_dir: Path | None = None,
+    max_parallel: int | None = None,
+    token_counter: Callable[[str], int] | None = None,
+) -> dict:
+    """Docker-free dry run: per class x source quota table, totals, recipe hash and a rough time and memory estimate. Writes nothing."""
+    from glyphforge import resources
+
+    recipe, _, _, _, _, _, rh, ctx, slots, _ = _prepare(recipe, base_dir, token_counter)
+    table: dict[tuple[str, str], list[int]] = {}
+    jobs = undrawable = 0
+    for lo in range(0, len(slots), SLOTS_PER_RENDER):
+        chunk = slots[lo : lo + SLOTS_PER_RENDER]
+        drafts = [d for s in chunk if (d := draw_slot(s, 0, ctx)) is not None]
+        undrawable += len(chunk) - len(drafts)
+        jobs += sum(len(k) for k in render_jobs(drafts).values())
+    for s in slots:
+        row = table.setdefault((s.error_class.name, ctx.source_kinds[s.source]), [0, 0])
+        row[0] += 1
+        row[1] += s.n_extra
+    workers = max_parallel or resources.DOCKER_MAX_PARALLEL
+    return {
+        "recipe_sha256": rh,
+        "quotas": [
+            {"error_class": c, "source": k, "pairs": p, "extra_controls": e, "rows": 2 * p + e} for (c, k), (p, e) in sorted(table.items())
+        ],
+        "attempt_cap": recipe.composition.attempt_cap,
+        "totals": {"slots": len(slots), "rows": sum(2 * p + e for p, e in table.values()), "render_jobs": jobs, "undrawable_slots": undrawable},
+        "estimate": {
+            "workers": workers, "docker_memory_gb": resources.DOCKER_MEMORY_GB,
+            "memory_gb": round(workers * resources.DOCKER_MEMORY_GB + resources.RAM_FLOOR_BYTES / resources.GIB, 2),
+            "wall_s": round(jobs / (RENDER_JOBS_PER_S * workers)), "rough": True,
+            "basis": f"{RENDER_JOBS_PER_S:g} rendered formulas/s per worker (round 0 only; refill rounds add more)",
+        },
+    }  # fmt: skip
+
+
 def run(
     recipe: Recipe | Mapping | str | Path,
     out_dir: str | Path,
@@ -154,33 +226,29 @@ def run(
     base_dir: Path | None = None,
     token_counter: Callable[[str], int] | None = None,
     export: bool = True,
+    progress: Callable[[int, int], None] | None = None,
 ) -> RunResult:
     """Run a recipe end to end into ``out_dir``; the output depends on the recipe only, never on ``max_parallel`` or ``batch_size``."""
-    if isinstance(recipe, str | Path):
-        base_dir = base_dir or Path(recipe).resolve().parent
-        recipe = load_recipe(recipe)
-    elif not isinstance(recipe, Recipe):
-        recipe = Recipe.model_validate(recipe)
-    out_dir, base_dir = Path(out_dir), base_dir or Path.cwd()
+    out_dir = Path(out_dir)
     if (out_dir / "run.json").exists():
         raise FileExistsError(f"{out_dir / 'run.json'} already exists")
-    reg = build_registry(recipe)
-    classes = resolve_classes(reg, recipe.classes)
-    class_ids = [f"{c.name}@{c.version}" for c in classes]
-    frozen = frozen_recipe(recipe, class_ids)
-    rh = recipe_sha256(frozen)
-    ctx, slots, quotas = build_context(recipe, classes, base_dir, recipe_hash=rh, counter=token_counter)
+    recipe, base_dir, reg, classes, class_ids, frozen, rh, ctx, slots, quotas = _prepare(recipe, base_dir, token_counter)
 
     kept: dict[int, list[dict]] = {}
     ledger, entries, no_draw, not_rendered, rounds = [], [], 0, 0, 0
     # Everything the rounds depend on besides the recipe: a resume under a different generator, rules, renderer, token counter or
     # source file content is refused instead of mixing rounds.
-    pins = [{"kind": k} | ({"sha256": sha} if (sha := getattr(src, "sha256", None)) else {}) for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)]
+    pins = [
+        {"kind": k} | ({"sha256": sha} if (sha := getattr(src, "sha256", None)) else {})
+        for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)
+    ]
     env = {
         "generator_version": __version__, "canon_versions": canon_versions(), "render_config": render_config(), "grammar_table_version": TABLE_VERSION,
         "token_estimator": {"custom": token_counter.__qualname__} if token_counter else {"fit": list(TOKEN_FIT), "cap": recipe.bounds.token_cap},
     }  # fmt: skip
-    header = json.loads(json.dumps({"recipe_sha256": rh, "schema_version": SCHEMA_VERSION, "slots_planned": len(slots), "sources": pins, **env}))
+    header = json.loads(
+        json.dumps({"recipe_sha256": rh, "schema_version": SCHEMA_VERSION, "slots_planned": len(slots), "sources": pins, **env})
+    )
     done = read_journal(out_dir, header) if (out_dir / JOURNAL).is_dir() else []
     for b in done:
         kept |= b["kept"]
@@ -194,6 +262,8 @@ def run(
         for lo in range(0, len(todo), SLOTS_PER_RENDER):
             g, ld, en, n1, n2 = _round(todo[lo : lo + SLOTS_PER_RENDER], attempt, ctx, recipe, rh, cache, max_parallel, batch_size, out_dir)
             got, led, ent, nd, nr = got | g, led + ld, ent + en, nd + n1, nr + n2
+            if progress:
+                progress(len(kept) + len(got), len(slots))
         write_round(out_dir, header, attempt, got, led, ent, nd, nr)
         kept |= got
         ledger += led
