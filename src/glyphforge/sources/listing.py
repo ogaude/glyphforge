@@ -43,11 +43,11 @@ class ListSource:
 
     def draw(self, cls: ErrorClass, rng: random.Random, *, level: str | None = None, multiline: bool = False) -> Formula | None:
         """A formula with at least one site of ``cls``, or None; ``level`` and ``multiline`` are unused here."""
-        i = _draw_index([f.latex for f in self.items], cls, rng, self._index)
+        i = draw_index([f.latex for f in self.items], cls, rng, self._index)
         return None if i is None else self.items[i]
 
 
-def _draw_index(latexes: Sequence[str], cls: ErrorClass, rng: random.Random, cache: dict) -> int | None:
+def draw_index(latexes: Sequence[str], cls: ErrorClass, rng: random.Random, cache: dict) -> int | None:
     """Pick a row index uniformly among rows where ``cls`` has a site; the site index is built once per class version."""
     key = (cls.name, cls.version)
     if key not in cache:
@@ -56,7 +56,7 @@ def _draw_index(latexes: Sequence[str], cls: ErrorClass, rng: random.Random, cac
     return idx[int(rng.random() * len(idx))] if idx else None
 
 
-def _resolve_inside(base_dir: Path, rel: str, suffix: str) -> Path:
+def resolve_inside(base_dir: Path, rel: str, suffix: str) -> Path:
     """Resolve ``rel`` under ``base_dir``; reject absolute paths, escapes and the wrong suffix."""
     root = base_dir.resolve()
     path = (root / rel).resolve()
@@ -90,7 +90,7 @@ def load_source(spec: SourceSpec, base_dir: Path) -> ListSource | MutationSource
         from glyphforge.sources.mutation import load_snapshot  # mutation imports this module's helpers
 
         return load_snapshot(spec, base_dir)
-    data = _resolve_inside(base_dir, spec.path, ".jsonl").read_bytes()
+    data = resolve_inside(base_dir, spec.path, ".jsonl").read_bytes()
     rows = []
     for lineno, line in enumerate(data.decode("utf-8").splitlines(), 1):
         if not line.strip():

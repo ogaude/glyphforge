@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
+from glyphforge.fileio import atomic_write, jsonl_bytes
 from glyphforge.sources.base import LICENSES, Formula
-from glyphforge.sources.listing import _draw_index, _resolve_inside
-from glyphforge.store import _atomic_write, _jsonl
+from glyphforge.sources.listing import draw_index, resolve_inside
 
 if TYPE_CHECKING:
     from glyphforge.errors.api import ErrorClass
@@ -112,7 +112,7 @@ def build_snapshot(glyphfix_root: Path, out: Path) -> dict:
             "rows": len(kept),
         }
     rows.sort(key=lambda r: (r["paper_id"], r["latex"], r["env"]))
-    data = _jsonl(rows)
+    data = jsonl_bytes(rows)
     below = sum(w * h < _MIN_AREA for w, h in zip(widths, heights, strict=True))
     meta = {
         "papers": sum(p["papers"] for p in pools.values()),
@@ -127,8 +127,8 @@ def build_snapshot(glyphfix_root: Path, out: Path) -> dict:
         "sha256": hashlib.sha256(data).hexdigest(),
         "sources_sha256": hashlib.sha256("\n".join(sorted(digests)).encode()).hexdigest(),
     }
-    _atomic_write(out, data)
-    _atomic_write(meta_path, (json.dumps(meta, indent=2, sort_keys=True) + "\n").encode())
+    atomic_write(out, data)
+    atomic_write(meta_path, (json.dumps(meta, indent=2, sort_keys=True) + "\n").encode())
     return meta
 
 
@@ -143,7 +143,7 @@ class MutationSource:
 
     def draw(self, cls: ErrorClass, rng: random.Random, *, level: str | None = None, multiline: bool = False) -> Formula | None:
         """A formula with at least one site of ``cls`` carrying its own licence and attribution, or None."""
-        i = _draw_index([r["latex"] for r in self.rows], cls, rng, self._index)
+        i = draw_index([r["latex"] for r in self.rows], cls, rng, self._index)
         if i is None:
             return None
         try:
@@ -154,7 +154,7 @@ class MutationSource:
 
 def load_snapshot(spec: SourceSpec, base_dir: Path) -> MutationSource:
     """Verify the pinned sha256, then keep only licence-allowed train rows without duplicate latex."""
-    path = _resolve_inside(base_dir, spec.path, ".jsonl")
+    path = resolve_inside(base_dir, spec.path, ".jsonl")
     if (actual := _file_sha256(path)) != spec.sha256:
         raise ValueError(f"snapshot sha256 mismatch: recipe pins {spec.sha256}, file is {actual}")
     rows, seen, rejected = [], set(), Counter()

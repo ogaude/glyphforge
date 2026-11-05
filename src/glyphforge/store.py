@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import io
 import json
-import os
 import re
-import tempfile
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+from glyphforge.fileio import atomic_write, jsonl_bytes
 
 SAMPLE_KEYS = (
     "attempt", "authors", "bitmap_sha256", "class_version", "column_cm", "control_glyph", "control_kind", "env", "error_class", "family",
@@ -64,30 +63,13 @@ def journal_image(out_dir: Path, data: bytes) -> str:
     """Store one kept PNG in the journal (content-addressed, before its round file commits it) and return its sha256."""
     sha = hashlib.sha256(data).hexdigest()
     if not (path := Path(out_dir) / JOURNAL / "images" / f"{sha}.png").exists():
-        _atomic_write(path, data)
+        atomic_write(path, data)
     return sha
-
-
-def _atomic_write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(data)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(tmp)
-        raise
 
 
 def _check_keys(row: dict, keys: tuple[str, ...], what: str) -> None:
     if set(row) != set(keys):
         raise ValueError(f"{what} keys differ: missing {sorted(set(keys) - set(row))}, extra {sorted(set(row) - set(keys))}")
-
-
-def _jsonl(rows: Sequence[dict]) -> bytes:
-    return "".join(json.dumps(r, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n" for r in rows).encode("utf-8")
 
 
 def write_store(out_dir: Path, samples: Sequence[dict], images: Mapping[str, bytes], ledger: Sequence[dict], run: dict) -> None:
@@ -106,10 +88,10 @@ def write_store(out_dir: Path, samples: Sequence[dict], images: Mapping[str, byt
         if sha not in images or s["image"] != f"images/{sha[:2]}/{sha}.png":
             raise ValueError(f"sample {s['sample_id']!r} image path does not match images/<sha[:2]>/<sha>.png of a stored image")
     for sha, data in images.items():
-        _atomic_write(out_dir / "images" / sha[:2] / f"{sha}.png", data)
-    _atomic_write(out_dir / "samples.jsonl", _jsonl(sorted(samples, key=lambda r: (r["slot"], r["role"], r["sample_id"]))))
-    _atomic_write(out_dir / "ledger.jsonl", _jsonl(sorted(ledger, key=lambda r: (r["slot"], r["attempt"], r["role"], r["sample_id"]))))
-    _atomic_write(out_dir / "run.json", (json.dumps(run, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))
+        atomic_write(out_dir / "images" / sha[:2] / f"{sha}.png", data)
+    atomic_write(out_dir / "samples.jsonl", jsonl_bytes(sorted(samples, key=lambda r: (r["slot"], r["role"], r["sample_id"]))))
+    atomic_write(out_dir / "ledger.jsonl", jsonl_bytes(sorted(ledger, key=lambda r: (r["slot"], r["attempt"], r["role"], r["sample_id"]))))
+    atomic_write(out_dir / "run.json", (json.dumps(run, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))
 
 
 def read_store(out_dir: Path) -> tuple[dict, list[dict], list[dict]]:
@@ -128,7 +110,7 @@ def write_round(
     root = Path(out_dir) / JOURNAL
     body = {"header": header, "round": round_no, "kept": {str(i): r for i, r in kept.items()}, "ledger": list(ledger),
             "entries": [list(e) for e in entries], "no_draw": no_draw, "not_rendered": not_rendered}  # fmt: skip
-    _atomic_write(root / f"round-{round_no:03d}.json", json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+    atomic_write(root / f"round-{round_no:03d}.json", json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8"))
 
 
 def read_journal(out_dir: Path, header: dict) -> list[dict]:

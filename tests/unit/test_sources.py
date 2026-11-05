@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 
 import pytest
 
@@ -185,3 +187,8 @@ def test_list_source_is_a_draw_source():
     from glyphforge.sources import DrawSource
 
     assert isinstance(ListSource(builtin_seed()), DrawSource)
+
+
+def test_sources_import_skips_the_image_stack():
+    code = "import sys, glyphforge.sources; assert not {'numpy', 'PIL'} & set(sys.modules)"
+    assert subprocess.run([sys.executable, "-c", code], check=False).returncode == 0
