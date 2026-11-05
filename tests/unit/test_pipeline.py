@@ -98,7 +98,9 @@ def test_exact_quotas_and_run_json(tmp_path, fake):
     assert set(run_info) >= {"scale", "balance", "survival", "styles", "render_config", "control_glyphs_used", "alternates_not_rendered"}
     assert len(fake) == 1 and fake[0][0] == "display" and len(set(fake[0][1])) == len(fake[0][1])
     for f in ("trainset.jsonl", "export_manifest.json"):
-        assert (tmp_path / "out" / "glyphfix" / f).is_file()
+        assert (tmp_path / "out" / "export" / "glyphfix" / f).is_file()
+    _go(tmp_path, recipe, "noexp", base_dir=bl, export=False)
+    assert (tmp_path / "noexp" / "run.json").is_file() and not (tmp_path / "noexp" / "export").exists()
     with_counter, *_ = _go(tmp_path, recipe, "counted", token_counter=len, base_dir=bl)
     counted_info, counted, _ = read_store(tmp_path / "counted")
     assert counted_info["token_estimator"] == {"custom": "len"} and with_counter.rows_kept > 0
