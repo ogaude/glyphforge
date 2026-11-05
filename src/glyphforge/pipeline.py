@@ -16,7 +16,7 @@ from glyphforge.errors import BUILTIN_MODULES, DEFAULT_REGISTRY, ErrorClass, Reg
 from glyphforge.export import control_glyphs_used, export_glyphfix
 from glyphforge.pixels import PIXEL_POLICY_VERSION
 from glyphforge.qc import pair_integrity, survival, verdict
-from glyphforge.recipe import SCHEMA_VERSION, Recipe, StyleSpec, frozen_recipe, load_recipe, recipe_sha256, to_style
+from glyphforge.recipe import SCHEMA_VERSION, Recipe, StyleSpec, effective_styles, frozen_recipe, load_recipe, recipe_sha256, to_style
 from glyphforge.render import IMAGE_DIGEST, RenderInfrastructureError, Style, load_bitmap, render_config, render_many
 from glyphforge.rng import slot_rng, slot_seed
 from glyphforge.sources import load_source
@@ -148,7 +148,8 @@ def run(
     frozen = frozen_recipe(recipe, class_ids)
     rh = recipe_sha256(frozen)
     formulas = load_source(recipe.source, base_dir or Path.cwd()).formulas()
-    cands = plan_candidates(formulas, classes, recipe.styles, seed=recipe.seed, recipe_hash=rh)
+    styles = tuple(s for s, _ in effective_styles(recipe))
+    cands = plan_candidates(formulas, classes, styles, seed=recipe.seed, recipe_hash=rh)
 
     wanted = dict.fromkeys(
         (latex, c.style)
@@ -177,7 +178,7 @@ def run(
         "classes": class_ids, "plugins": [m for m in reg.modules if m not in BUILTIN_MODULES], "entry_points": reg.entry_points,
         "styles": {
             s.name: {"font": s.font, "size": s.size, "packages": list(s.packages), "preamble_sha256": to_style(s).preamble_sha256}
-            for s in recipe.styles
+            for s in styles
         },
         "canon_versions": canon_versions(), "render_config": render_config(), "pixel_policy_version": PIXEL_POLICY_VERSION,
         "numpy_version": np.__version__, "pillow_version": PIL.__version__,
@@ -186,7 +187,7 @@ def run(
             "by_reason": dict(sorted(by_reason.items())),
         },
         "alternates_not_rendered": not_rendered,
-        "survival": (surv := survival(entries, [(cid, s.name) for cid in class_ids for s in recipe.styles])),
+        "survival": (surv := survival(entries, [(cid, s.name) for cid in class_ids for s in styles])),
         "control_glyphs_used": control_glyphs_used(samples),
     }
     write_store(out_dir, samples, images, ledger, run_info)

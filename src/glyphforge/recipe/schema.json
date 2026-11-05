@@ -1,5 +1,80 @@
 {
   "$defs": {
+    "BoundsSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "max_depth": {
+          "default": 6,
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Max Depth",
+          "type": "integer"
+        },
+        "max_scripts": {
+          "default": 12,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Max Scripts",
+          "type": "integer"
+        },
+        "max_tokens": {
+          "default": 500,
+          "maximum": 4096,
+          "minimum": 16,
+          "title": "Max Tokens",
+          "type": "integer"
+        },
+        "token_margin": {
+          "default": 60,
+          "minimum": 0,
+          "title": "Token Margin",
+          "type": "integer"
+        }
+      },
+      "title": "BoundsSpec",
+      "type": "object"
+    },
+    "CompositionSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_cap": {
+          "default": 5,
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Attempt Cap",
+          "type": "integer"
+        },
+        "hard_negative_ratio": {
+          "default": 1.0,
+          "minimum": 1.0,
+          "title": "Hard Negative Ratio",
+          "type": "number"
+        },
+        "shares": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shares"
+        },
+        "total": {
+          "default": 100,
+          "minimum": 1,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "CompositionSpec",
+      "type": "object"
+    },
     "ExportSpec": {
       "additionalProperties": false,
       "properties": {
@@ -91,9 +166,45 @@
       "title": "QCSpec",
       "type": "object"
     },
+    "RenderSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "pad_px": {
+          "default": 0,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Pad Px",
+          "type": "integer"
+        }
+      },
+      "title": "RenderSpec",
+      "type": "object"
+    },
     "SourceSpec": {
       "additionalProperties": false,
       "properties": {
+        "domains": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "propertyNames": {
+                "enum": [
+                  "math",
+                  "astro-ph",
+                  "physics"
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Domains"
+        },
         "formulas": {
           "default": [],
           "items": {
@@ -107,7 +218,10 @@
           "enum": [
             "builtin",
             "inline",
-            "file"
+            "file",
+            "grammar",
+            "mutation",
+            "mix"
           ],
           "title": "Kind",
           "type": "string"
@@ -129,6 +243,28 @@
           "default": null,
           "title": "Licence"
         },
+        "max_sites": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Sites"
+        },
+        "parts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceSpec"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
         "path": {
           "anyOf": [
             {
@@ -140,9 +276,98 @@
           ],
           "default": null,
           "title": "Path"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "shares": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shares"
         }
       },
       "title": "SourceSpec",
+      "type": "object"
+    },
+    "StructureSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "column_cm": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Column Cm",
+          "type": "object"
+        },
+        "kinds": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {
+            "display": 1.0,
+            "inline": 0.0,
+            "numbered": 0.0
+          },
+          "propertyNames": {
+            "enum": [
+              "display",
+              "inline",
+              "numbered"
+            ]
+          },
+          "title": "Kinds",
+          "type": "object"
+        },
+        "multiline": {
+          "default": 0.2,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Multiline",
+          "type": "number"
+        },
+        "punct_prob": {
+          "default": 0.2,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Punct Prob",
+          "type": "number"
+        },
+        "text_prob": {
+          "default": 0.8,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Text Prob",
+          "type": "number"
+        }
+      },
+      "title": "StructureSpec",
       "type": "object"
     },
     "StyleSpec": {
@@ -179,6 +404,12 @@
           "minimum": 8,
           "title": "Size",
           "type": "integer"
+        },
+        "weight": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Weight",
+          "type": "number"
         }
       },
       "required": [
@@ -188,10 +419,73 @@
       ],
       "title": "StyleSpec",
       "type": "object"
+    },
+    "TypographySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "fonts": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "cm",
+              "lmodern",
+              "mathpazo",
+              "newtx",
+              "libertine",
+              "stix2"
+            ]
+          },
+          "title": "Fonts",
+          "type": "object"
+        },
+        "packages": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9-]*$",
+            "type": "string"
+          },
+          "title": "Packages",
+          "type": "array"
+        },
+        "site_levels": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "base",
+              "script",
+              "scriptscript"
+            ]
+          },
+          "title": "Site Levels",
+          "type": "object"
+        },
+        "sizes": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Sizes",
+          "type": "object"
+        }
+      },
+      "title": "TypographySpec",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
+    "bounds": {
+      "$ref": "#/$defs/BoundsSpec",
+      "default": {
+        "max_depth": 6,
+        "max_scripts": 12,
+        "max_tokens": 500,
+        "token_margin": 60
+      }
+    },
     "classes": {
       "anyOf": [
         {
@@ -206,6 +500,15 @@
       ],
       "default": null,
       "title": "Classes"
+    },
+    "composition": {
+      "$ref": "#/$defs/CompositionSpec",
+      "default": {
+        "attempt_cap": 5,
+        "hard_negative_ratio": 1.0,
+        "shares": null,
+        "total": 100
+      }
     },
     "entry_points": {
       "default": false,
@@ -235,9 +538,15 @@
         "ambiguity": "drop"
       }
     },
+    "render": {
+      "$ref": "#/$defs/RenderSpec",
+      "default": {
+        "pad_px": 0
+      }
+    },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     },
@@ -250,41 +559,76 @@
     "source": {
       "$ref": "#/$defs/SourceSpec",
       "default": {
+        "domains": null,
         "formulas": [],
         "kind": "builtin",
         "licence": null,
-        "path": null
+        "max_sites": null,
+        "parts": [],
+        "path": null,
+        "sha256": null,
+        "shares": null
+      }
+    },
+    "structure": {
+      "$ref": "#/$defs/StructureSpec",
+      "default": {
+        "column_cm": {
+          "12": 50.0,
+          "15": 30.0,
+          "8.5": 20.0
+        },
+        "kinds": {
+          "display": 1.0,
+          "inline": 0.0,
+          "numbered": 0.0
+        },
+        "multiline": 0.2,
+        "punct_prob": 0.2,
+        "text_prob": 0.8
       }
     },
     "styles": {
-      "default": [
+      "anyOf": [
         {
-          "font": "cm",
-          "name": "default",
-          "packages": [],
-          "size": 12
+          "items": {
+            "$ref": "#/$defs/StyleSpec"
+          },
+          "minItems": 1,
+          "type": "array"
         },
         {
-          "font": "cm",
-          "name": "cmbright",
-          "packages": [
-            "cmbright"
-          ],
-          "size": 12
-        },
-        {
-          "font": "libertine",
-          "name": "libertine",
-          "packages": [],
-          "size": 12
+          "type": "null"
         }
       ],
-      "items": {
-        "$ref": "#/$defs/StyleSpec"
-      },
-      "minItems": 1,
-      "title": "Styles",
-      "type": "array"
+      "default": null,
+      "title": "Styles"
+    },
+    "typography": {
+      "$ref": "#/$defs/TypographySpec",
+      "default": {
+        "fonts": {
+          "cm": 55.0,
+          "libertine": 6.0,
+          "lmodern": 15.0,
+          "mathpazo": 7.0,
+          "newtx": 10.0,
+          "stix2": 7.0
+        },
+        "packages": [],
+        "site_levels": {
+          "base": 60.0,
+          "script": 30.0,
+          "scriptscript": 10.0
+        },
+        "sizes": {
+          "10": 35.0,
+          "11": 25.0,
+          "12": 30.0,
+          "8": 3.0,
+          "9": 7.0
+        }
+      }
     }
   },
   "title": "Recipe",
