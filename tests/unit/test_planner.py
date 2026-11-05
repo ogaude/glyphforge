@@ -27,6 +27,7 @@ from glyphforge.plan.draw import (
 )
 from glyphforge.recipe.load import effective_styles
 from glyphforge.recipe.schema import BoundsSpec, CompositionSpec, Recipe, SourceSpec, StructureSpec, StyleSpec
+from glyphforge.rng import slot_seed
 from glyphforge.sources import Formula, ListSource, builtin_seed, load_source
 from glyphforge.sources.grammar import GrammarSource
 
@@ -262,6 +263,7 @@ def test_extra_controls_match_style_bucket_and_differ():
         assert re.search(r"\n\\tag\{" + d.look.tag + r"\}$", c.label) and c.label.rstrip().endswith(f"\\tag{{{d.look.tag}}}")
         assert c.label.split("\n\\tag{")[0] in c.alternates and c.control_glyph
         assert c.site_level == "base"
+        assert c.seed == slot_seed(ctx.seed, f"ctrl{j}", 3, 0) != d.seed
 
 
 def test_extra_controls_are_distinct_rows():

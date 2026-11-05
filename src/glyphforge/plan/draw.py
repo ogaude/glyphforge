@@ -65,6 +65,7 @@ class Control:
     n_tokens: int
     site_level: str
     paper_id: str | None
+    seed: int
 
 
 @dataclass(frozen=True)
@@ -244,14 +245,15 @@ def draw_slot(slot: Slot, attempt: int, ctx: DrawContext) -> Draft | None:
     own = chosen[len(chosen) - n_sites :]
     n_tokens, controls, used = count(t), [], {t, h}  # a control repeating the pair or an earlier control would be a duplicate row
     for j in range(slot.n_extra):
-        rng = slot_rng(ctx.seed, f"ctrl{j}", i, attempt)
+        cseed = slot_seed(ctx.seed, f"ctrl{j}", i, attempt)
+        rng = random.Random(cseed)
         c = _pair(slot, ctx, look, rng, rng, 1, lambda g, label: g.latex != f.latex and label not in used and count(label) // 16 == n_tokens // 16)
         if c is None:
             return None
         cf, csites, cv, (_, ch, _, c_alts) = c
         used.add(ch)
         cf = _own(cf, slot)
-        controls.append(Control(j, cf, ch, c_alts, cv.control_glyph, count(ch), _level(cf.latex, csites), cf.paper_id))
+        controls.append(Control(j, cf, ch, c_alts, cv.control_glyph, count(ch), _level(cf.latex, csites), cf.paper_id, cseed))
     return Draft(
         slot, attempt, look, wrapper_for(look), to_style(look.style, cls.packages, look.column_cm), _own(f, slot),
         ctx.source_kinds[slot.source], n_sites, _level(f.latex, own), v, t, h, t_alts, h_alts, n_tokens, count(h),

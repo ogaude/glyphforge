@@ -16,6 +16,7 @@ from glyphforge import pipeline
 from glyphforge.errors import ConfusionPair, builtin_registry
 from glyphforge.pipeline import build_registry, resolve_classes, run
 from glyphforge.recipe import Recipe
+from glyphforge.rng import slot_seed
 from glyphforge.store import LEDGER_KEYS, SAMPLE_KEYS, read_store
 
 REG = builtin_registry()
@@ -109,6 +110,7 @@ def test_slot_style_is_shared_by_its_rows(tmp_path, fake):
         assert (e["role"], e["pair_id"], e["sample_id"]) == ("hard_negative", None, f"{t['pair_id']}-c0")
         assert all(e[k] == t[k] for k in ("style", "font", "size_pt", "column_cm", "structure", "wrapper"))
         assert e["control_glyph"] and t["control_glyph"] is None
+        assert e["seed"] == slot_seed(3, "ctrl0", e["slot"], e["attempt"]) != t["seed"]  # the control's own stage seed
     assert Counter(s["control_kind"] for s in samples) == {"pair": 8, "extra": 4}
 
 

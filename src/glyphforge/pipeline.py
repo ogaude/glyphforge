@@ -89,7 +89,7 @@ def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path
         "env": f.env, "family": d.slot.error_class.family, "flags": sorted(v.flags), "generator_version": __version__,
         "height": int(padded.shape[0]), "image": f"images/{sha[:2]}/{sha}.png", "image_digest": IMAGE_DIGEST, "image_sha256": sha,
         "licence": f.licence, "n_sites": 1 if c else d.n_sites, "n_tokens": c.n_tokens if c else d.hard_negative_n_tokens if role == "hard_negative" else d.n_tokens, "pad_px": pad_px,
-        "paper_id": f.paper_id, "paper_version": f.paper_version, "recipe_sha256": rh, "rules": canon_versions(), "seed": d.seed,
+        "paper_id": f.paper_id, "paper_version": f.paper_version, "recipe_sha256": rh, "rules": canon_versions(), "seed": c.seed if c else d.seed,
         "site_level": c.site_level if c else d.site_level, "size_pt": look.style.size, "style_preamble_sha256": d.style.preamble_sha256,
         "width": int(padded.shape[1]), "wrapper": d.wrapper,
     }  # fmt: skip
