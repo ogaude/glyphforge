@@ -6,11 +6,11 @@ import hashlib
 import json
 import random
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import cache, cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import yaml
 from pydantic import ValidationError
@@ -105,12 +105,12 @@ def load_source(spec: SourceSpec, base_dir: Path) -> ListSource | MutationSource
     if spec.kind == "grammar":
         from glyphforge.sources.grammar import GrammarSource  # grammar imports plan.bounds
 
-        return GrammarSource(spec.domains)
+        return GrammarSource(cast("Mapping[str, float] | None", spec.domains))
     if spec.kind == "mutation":
         from glyphforge.sources.mutation import load_snapshot  # mutation imports this module's helpers
 
         return load_snapshot(spec, base_dir)
-    data = resolve_inside(base_dir, spec.path, ".jsonl").read_bytes()
+    data = resolve_inside(base_dir, cast("str", spec.path), ".jsonl").read_bytes()
     rows = []
     for lineno, line in enumerate(data.decode("utf-8").splitlines(), 1):
         if not line.strip():
