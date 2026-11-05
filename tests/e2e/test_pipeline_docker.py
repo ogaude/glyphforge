@@ -7,7 +7,8 @@ import pytest
 
 from glyphforge import pipeline
 from glyphforge.errors import Registry, check_error_class, pairs_from_alignment
-from glyphforge.pipeline import plan_candidates, resolve_classes, run
+from glyphforge.pipeline import resolve_classes, run
+from glyphforge.plan import build_context, draw_slot
 from glyphforge.recipe import DEFAULT_STYLES, Recipe, frozen_recipe, recipe_sha256, to_style
 from glyphforge.render import Style, docker, render_many
 from glyphforge.store import read_store
@@ -15,7 +16,7 @@ from glyphforge.store import read_store
 pytestmark = [pytest.mark.docker, pytest.mark.skipif(not docker.docker_available(), reason="pinned texlive image not available")]
 
 FAMILIES = ("primes", "greek", "digits", "decorations", "alphabets")
-STYLE_NAMES = tuple(s.name for s in DEFAULT_STYLES)
+FONTS = tuple(sorted({s.font for s in DEFAULT_STYLES}))
 
 
 def _inline(formulas, classes, **kw):
@@ -53,17 +54,10 @@ def test_every_family_end_to_end(default_run):
     classes = resolve_classes(reg, recipe.classes)
     rh = run_json["recipe_sha256"]
     assert rh == recipe_sha256(frozen_recipe(recipe, [f"{c.name}@{c.version}" for c in classes]))
-    from glyphforge.sources import load_source
-
-    planned = {
-        c.pair_id: c
-        for c in plan_candidates(
-            load_source(recipe.source, Path.cwd()).formulas(), classes, recipe.styles, seed=recipe.seed, recipe_hash=rh
-        )
-    }
+    ctx, slots, _ = build_context(recipe, classes, Path.cwd(), recipe_hash=rh)
     for s in samples[:: max(1, len(samples) // 5)][:5]:
-        v = planned[s["pair_id"]].variant
-        assert s["label"] == (v.target if s["role"] == "target" else v.hard_negative)
+        d = draw_slot(slots[s["slot"]], s["attempt"], ctx)
+        assert s["label"] == (d.target if s["role"] == "target" else d.hard_negative)
 
 
 def test_omicron_renders_with_lgrmath(default_run):
@@ -76,10 +70,10 @@ def test_omicron_renders_with_lgrmath(default_run):
 def test_exact_gate_positive_control(default_run):
     _, run_json, _, _, _ = default_run
     cells = run_json["survival"]["cells"]
-    for name in STYLE_NAMES:
-        cell = cells[f"decorations.boldsymbol_bm@1|{name}"]
-        assert cell["kept"] == 0 and cell["dropped"] == {"ambiguous-identical": cell["planned"]}, (name, cell)
-        assert ["decorations.boldsymbol_bm@1", name] in run_json["survival"]["zero_yield"]
+    for font in FONTS:
+        cell = cells[f"decorations.boldsymbol_bm@1|{font}"]
+        assert cell["kept"] == 0 and set(cell["dropped"]) <= {"ambiguous-identical", "pair_partner_dropped"}, (font, cell)
+        assert ["decorations.boldsymbol_bm@1", font] in run_json["survival"]["zero_yield"]
 
 
 def test_near_identical_flag_only(default_run):
@@ -93,13 +87,13 @@ def test_near_identical_flag_only(default_run):
 
 
 def test_flag_policy(tmp_path):
-    recipe = _inline([r"\boldsymbol{x}+y"], ["decorations.boldsymbol_bm"])
+    recipe = _inline([r"\boldsymbol{x}+y"], ["decorations.boldsymbol_bm"], composition={"total": 1})
     flagged = run({**recipe, "qc": {"ambiguity": "flag"}}, tmp_path / "flag", cache=tmp_path / "c", max_parallel=2)
     _, samples, ledger = read_store(tmp_path / "flag")
     assert flagged.rows_kept == 2 and not ledger and all("ambiguous" in s["flags"] for s in samples)
     dropped = run({**recipe, "qc": {"ambiguity": "drop"}}, tmp_path / "drop", cache=tmp_path / "c", max_parallel=2)
     _, samples, ledger = read_store(tmp_path / "drop")
-    assert dropped.rows_kept == 0 and [r["reason"] for r in ledger] == ["ambiguous-identical"] * 2
+    assert dropped.rows_kept == 0 and {r["reason"] for r in ledger} == {"ambiguous-identical"}
 
 
 def test_compile_failure_and_partner(tmp_path, monkeypatch):
@@ -109,7 +103,7 @@ def test_compile_failure_and_partner(tmp_path, monkeypatch):
     )
     monkeypatch.syspath_prepend(tmp_path)
     run(
-        {**_inline(["a_{v}+b"], ["custom.fail_v"]), "plugins": ["e2e_failing_plugin"]},
+        {**_inline(["a_{v}+b"], ["custom.fail_v"], composition={"total": 1}), "plugins": ["e2e_failing_plugin"]},
         tmp_path / "out",
         cache=tmp_path / "c",
         max_parallel=2,
@@ -126,7 +120,7 @@ def test_library_route_with_mined_pair(tmp_path, monkeypatch):
     reg = Registry()
     monkeypatch.setattr(pipeline, "DEFAULT_REGISTRY", reg)
     reg.register(pairs[0])
-    result = run(_inline([r"a+\phi"], ["mined.varphi_phi"]), tmp_path / "out", cache=tmp_path / "c", max_parallel=2)
+    result = run(_inline([r"a+\phi"], ["mined.varphi_phi"], composition={"total": 1}), tmp_path / "out", cache=tmp_path / "c", max_parallel=2)
     assert result.rows_kept > 0
 
 
