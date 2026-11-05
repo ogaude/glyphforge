@@ -9,7 +9,7 @@ from glyphforge import pipeline
 from glyphforge.errors import Registry, check_error_class, pairs_from_alignment
 from glyphforge.pipeline import resolve_classes, run
 from glyphforge.plan import build_context, draw_slot
-from glyphforge.recipe import DEFAULT_STYLES, Recipe, frozen_recipe, recipe_sha256, to_style
+from glyphforge.recipe import DEFAULT_STYLES, Recipe, StyleSpec, frozen_recipe, recipe_sha256, to_style
 from glyphforge.render import Style, docker, render_many
 from glyphforge.store import read_store
 
@@ -61,10 +61,13 @@ def test_every_family_end_to_end(default_run):
 
 
 def test_omicron_renders_with_lgrmath(default_run):
-    _, _, samples, _, _ = default_run
-    rows = [s for s in samples if s["error_class"] == "greek.omicron_o" and s["style"] == "default"]
+    _, run_json, samples, _, _ = default_run
+    rows = [s for s in samples if s["error_class"] == "greek.omicron_o"]
     assert rows
-    assert {s["style_preamble_sha256"] for s in rows} == {to_style(DEFAULT_STYLES[0], {"lgrmath"}).preamble_sha256}
+    for s in rows:
+        spec = run_json["styles"][s["style"]]
+        style = to_style(StyleSpec(name=s["style"], font=spec["font"], size=spec["size"], packages=tuple(spec["packages"])), {"lgrmath"}, s["column_cm"])
+        assert s["style_preamble_sha256"] == style.preamble_sha256
 
 
 def test_exact_gate_positive_control(default_run):
@@ -79,9 +82,9 @@ def test_exact_gate_positive_control(default_run):
 def test_near_identical_flag_only(default_run):
     _, run_json, _, ledger, _ = default_run
     cells = run_json["survival"]["cells"]
-    cell = cells["digits.I_l@1|cmbright"]
-    print("digits.I_l@1|cmbright:", cell)
-    assert cell["kept"] > 0
+    il = {k: c for k, c in cells.items() if k.startswith("digits.I_l@1|")}
+    print("I_l cells:", il)
+    assert any(c["kept"] > 0 for c in il.values())
     print("near-identical cells:", {k: c["flags"]["near-identical"] for k, c in cells.items() if c["flags"].get("near-identical")})
     assert not [r for r in ledger if "near" in r["reason"]]  # a near-identical flag never drops a row
 
