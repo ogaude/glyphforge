@@ -79,6 +79,26 @@ def test_foreign_journal_is_refused_before_any_render(tmp_path, fake, kill):
     assert len(fake) == n
 
 
+def test_journal_from_other_inputs_is_refused(tmp_path, kill):
+    """WR-03: a different token counter or edited file-source content is not hidden behind the same recipe hash."""
+    kill(2)
+    with pytest.raises(RuntimeError, match="killed"):
+        _go(tmp_path, "b")
+    kill(None)
+    with pytest.raises(ValueError, match="journal belongs to a different recipe"):
+        run(RECIPE, tmp_path / "b", cache=tmp_path / "c-b", token_counter=len)
+    src = tmp_path / "f.jsonl"
+    src.write_text("".join(json.dumps({"latex": x}) + "\n" for x in RECIPE["source"]["formulas"]), "utf-8")
+    recipe = RECIPE | {"source": {"kind": "file", "path": "f.jsonl", "licence": "CC0-1.0"}}
+    kill(2)
+    with pytest.raises(RuntimeError, match="killed"):
+        run(recipe, tmp_path / "f", cache=tmp_path / "c-f", base_dir=tmp_path)
+    kill(None)
+    src.write_text(src.read_text("utf-8") + json.dumps({"latex": "v+d"}) + "\n", "utf-8")
+    with pytest.raises(ValueError, match="journal belongs to a different recipe"):
+        run(recipe, tmp_path / "f", cache=tmp_path / "c-f", base_dir=tmp_path)
+
+
 def test_damaged_journal_images_are_refused(tmp_path, kill):
     kill(3)
     with pytest.raises(RuntimeError, match="killed"):

@@ -168,7 +168,14 @@ def run(
 
     kept: dict[int, list[dict]] = {}
     ledger, images, entries, no_draw, not_rendered, rounds = [], {}, [], 0, 0, 0
-    header = {"recipe_sha256": rh, "schema_version": SCHEMA_VERSION, "slots_planned": len(slots)}
+    # Everything the rounds depend on besides the recipe: a resume under a different generator, rules, renderer, token counter or
+    # source file content is refused instead of mixing rounds.
+    pins = [{"kind": k} | ({"sha256": sha} if (sha := getattr(src, "sha256", None)) else {}) for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)]
+    env = {
+        "generator_version": __version__, "canon_versions": canon_versions(), "render_config": render_config(), "grammar_table_version": TABLE_VERSION,
+        "token_estimator": {"custom": token_counter.__qualname__} if token_counter else {"fit": list(TOKEN_FIT), "cap": recipe.bounds.token_cap},
+    }  # fmt: skip
+    header = json.loads(json.dumps({"recipe_sha256": rh, "schema_version": SCHEMA_VERSION, "slots_planned": len(slots), "sources": pins, **env}))
     done = read_journal(out_dir, header) if (out_dir / JOURNAL).is_dir() else []
     for b in done:
         kept |= b["kept"]
@@ -194,26 +201,26 @@ def run(
     spec = recipe.source
     mutation = [p for p in (spec.parts if spec.kind == "mix" else (spec,)) if p.kind == "mutation"]
     meta = (base_dir / mutation[0].path).with_suffix(".meta.json") if mutation else None
-    corpus = json.loads(meta.read_text("utf-8")).get("reference_crops") if meta and meta.is_file() else None
+    meta_bytes = meta.read_bytes() if meta and meta.is_file() else None  # the sidecar is not pinned by the recipe: record its sha256
+    corpus = json.loads(meta_bytes).get("reference_crops") if meta_bytes else None
     balance = balance_report(samples)
     run_info = {
-        "schema_version": SCHEMA_VERSION, "generator_version": __version__, "seed": recipe.seed, "recipe": frozen, "recipe_sha256": rh,
+        "schema_version": SCHEMA_VERSION, **env, "seed": recipe.seed, "recipe": frozen, "recipe_sha256": rh,
         "classes": class_ids, "plugins": [m for m in reg.modules if m not in BUILTIN_MODULES], "entry_points": reg.entry_points,
         "styles": {
             s.name: {"font": s.font, "size": s.size, "packages": list(s.packages), "weight": w, "preamble_sha256": to_style(s).preamble_sha256}
             for s, w in ctx.styles
         },
-        "canon_versions": canon_versions(), "render_config": render_config(), "pixel_policy_version": PIXEL_POLICY_VERSION,
+        "pixel_policy_version": PIXEL_POLICY_VERSION,
         "numpy_version": np.__version__, "pillow_version": PIL.__version__,
         "quotas": quotas, "shortfall": short,
         "sources": [
-            {"kind": k} | ({"sha256": src.sha256, "rejected": dict(sorted(src.rejected.items()))} if k == "mutation" else {})
-            for k, src in zip(ctx.source_kinds, ctx.sources, strict=True)
+            p | ({"rejected": dict(sorted(src.rejected.items()))} if k == "mutation" else {})
+            for p, k, src in zip(pins, ctx.source_kinds, ctx.sources, strict=True)
         ],
         "mix_shares": list(spec.shares) if spec.kind == "mix" else [1.0],
-        "token_estimator": {"custom": token_counter.__qualname__} if token_counter else {"fit": list(TOKEN_FIT), "cap": recipe.bounds.token_cap},
-        "grammar_table_version": TABLE_VERSION,
         "scale": scale_report(samples, corpus=corpus), "balance": balance,
+        "corpus_meta_sha256": hashlib.sha256(meta_bytes).hexdigest() if meta_bytes else None,
         "attempts": {"cap": recipe.composition.attempt_cap, "rounds": rounds},
         "counts": {
             "slots_planned": len(slots), "slots_kept": len(kept), "rows_kept": len(samples), "rows_dropped": len(ledger),

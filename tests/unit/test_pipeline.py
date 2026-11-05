@@ -224,6 +224,7 @@ def test_mutation_rows_carry_snapshot_attribution(tmp_path, fake):
         assert s["paper_id"].startswith("2101.000") and s["authors"] and s["paper_id"] != "2101.0003"
     assert run_info["sources"] == [{"kind": "mutation", "sha256": recipe["source"]["sha256"], "rejected": {"split": 1}}]
     assert run_info["scale"]["references"]["corpus"] == meta["reference_crops"]
+    assert run_info["corpus_meta_sha256"] == hashlib.sha256(snap.with_suffix(".meta.json").read_bytes()).hexdigest()
     assert str(tmp_path) not in json.dumps(run_info)
 
 

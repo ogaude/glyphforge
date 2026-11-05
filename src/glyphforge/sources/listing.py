@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from collections import Counter
@@ -27,9 +28,10 @@ SEED_LICENCE = "CC0-1.0"
 
 @dataclass(frozen=True)
 class ListSource:
-    """A fixed, ordered list of formulas; each latex string appears once."""
+    """A fixed, ordered list of formulas; each latex string appears once. ``sha256`` pins a file source's content."""
 
     items: tuple[Formula, ...]
+    sha256: str | None = None
     _index: dict = field(default_factory=dict, compare=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -88,9 +90,9 @@ def load_source(spec: SourceSpec, base_dir: Path) -> ListSource | MutationSource
         from glyphforge.sources.mutation import load_snapshot  # mutation imports this module's helpers
 
         return load_snapshot(spec, base_dir)
-    path = _resolve_inside(base_dir, spec.path, ".jsonl")
+    data = _resolve_inside(base_dir, spec.path, ".jsonl").read_bytes()
     rows = []
-    for lineno, line in enumerate(path.read_text("utf-8").splitlines(), 1):
+    for lineno, line in enumerate(data.decode("utf-8").splitlines(), 1):
         if not line.strip():
             continue
         try:
@@ -100,4 +102,4 @@ def load_source(spec: SourceSpec, base_dir: Path) -> ListSource | MutationSource
             rows.append(Formula.model_validate(row))
         except (ValueError, ValidationError, AttributeError) as exc:
             raise ValueError(f"{spec.path}:{lineno}: {exc}") from exc
-    return ListSource(tuple(rows))
+    return ListSource(tuple(rows), hashlib.sha256(data).hexdigest())
