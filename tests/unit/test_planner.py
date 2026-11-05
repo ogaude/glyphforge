@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import random
 import re
@@ -332,3 +333,10 @@ def test_build_context_list_and_mix(tmp_path):
     assert sum(s.source == 0 for s in slots) == 30 and all((s.paper_id is None) == (s.source == 1) for s in slots)
     d = draw_slot(slots[0], 0, ctx)
     assert d is None or d.source_kind in ("grammar", "list")
+
+
+def test_grammar_drafts_stay_at_the_drawn_site_level():
+    """WR-06: with site_levels {script: 1} no grammar draft may mutate a base-level site (5/600 did when only sites[0] was checked)."""
+    ctx = dataclasses.replace(_ctx(GrammarSource(), "grammar"), site_levels={"base": 0.0, "script": 1.0, "scriptscript": 0.0})
+    drafts = [d for s in _slots([REG.get(n) for n in REG.names()], 300, source_kinds=("grammar",))[0] if (d := draw_slot(s, 0, ctx))]
+    assert len(drafts) > 200 and {d.site_level for d in drafts} == {"script"}

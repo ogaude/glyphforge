@@ -19,7 +19,7 @@ from glyphforge.plan.bounds import nesting_depth, script_count, site_level
 from glyphforge.rng import pick
 from glyphforge.sources.base import Formula
 
-TABLE_VERSION = "1"
+TABLE_VERSION = "2"  # bump when the tables or the draw rules change (2: every site of the class must sit at the drawn level)
 DOMAINS = ("math", "astro-ph", "physics")
 # Per-formula budgets, below the recipe bounds defaults (440 tokens / depth 6 / 12 scripts) so the planner rarely rejects:
 # the script-level wrapper adds up to 2 brace levels and 2 scripts on top of DEPTH and SCRIPTS.
@@ -133,7 +133,7 @@ class GrammarSource:
     tables: Mapping[str, Table] | None = None
 
     def draw(self, cls: ErrorClass, rng: random.Random, *, level: str = "base", multiline: bool = False) -> Formula | None:
-        """A formula whose first site of ``cls`` sits at ``level``, or None when no attempt produced one."""
+        """A formula whose every site of ``cls`` sits at ``level`` (the planner may mutate any of them), or None when no attempt produced one."""
         tables, weights = self.tables or load_tables(), self.domains or dict.fromkeys(DOMAINS, 1.0)
         names = sorted(weights)
         known = isinstance(cls, ConfusionPair | CommandPair | Prime)
@@ -145,7 +145,7 @@ class GrammarSource:
             latex = _expand(table, _STARTS[multiline], rng, [TOKENS, SCRIPTS], DEPTH)
             m = re.search(_REF, latex)
             latex = splice(latex, m.start(), m.end(), site)  # type: ignore[union-attr]
-            if (sites := cls.sites(latex)) and site_level(latex, sites[0]) == level:
+            if (sites := cls.sites(latex)) and all(site_level(latex, s) == level for s in sites):
                 try:
                     return Formula(latex=latex, licence="CC0-1.0", env="align*" if multiline else "equation*")
                 except ValidationError:
