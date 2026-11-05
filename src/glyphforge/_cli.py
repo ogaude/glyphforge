@@ -192,13 +192,13 @@ def build_app() -> typer.Typer:
             Path | None, typer.Option("--recipe", help="Take only this file's export section instead of the store's frozen one.")
         ] = None,
         fmt: Annotated[
-            Literal["glyphfix", "parquet"] | None, typer.Option("--format", help="glyphfix or parquet; default is the store's frozen format list.")
+            Literal["glyphfix", "parquet"] | None, typer.Option("--format", help="glyphfix or parquet; default is the --recipe file's formats, else the store's frozen list.")
         ] = None,
         as_json: AsJson = False,
     ) -> None:
         """Export STORE to OUT/<format> with the leak gate always run first.
 
-        Uses the store's frozen export section; --recipe takes only the export section of another file (recorded in the manifest). The
+        Uses the store's frozen export section; --recipe (whose formats are then the default) takes only the export section of another file (recorded in the manifest). The
         blocklist path resolves against the --recipe file's directory, else against the current directory (a store whose recipe sits
         elsewhere needs --recipe); its pinned sha256 is always verified and an empty blocklist is refused. A leak hit prints the hit report and exits 1 with nothing written.
         """
@@ -206,10 +206,10 @@ def build_app() -> typer.Typer:
         from glyphforge.recipe import load_recipe
 
         run_json = json.loads((store / "run.json").read_text(encoding="utf-8"))
-        formats = [fmt] if fmt else run_json["recipe"]["export"]["formats"]
-        if not formats:
-            raise ValueError("no export format: pass --format or use a store whose recipe lists export.formats")
         spec, base = (load_recipe(recipe).export, recipe.resolve().parent) if recipe else (None, None)
+        formats = [fmt] if fmt else list(spec.formats if spec else run_json["recipe"]["export"]["formats"])
+        if not formats:
+            raise ValueError("no export format: pass --format, or a recipe (--recipe, else the store's frozen one) that lists export.formats")
         manifests = []
         try:
             for f in formats:
@@ -238,6 +238,8 @@ def build_app() -> typer.Typer:
     ) -> None:
         """Write a self-contained HTML contact sheet from SOURCE, a store directory (no rendering) or a recipe file (renders a small run)."""
         _env(docker_memory)
+        if out.exists():
+            raise FileExistsError(f"{out} exists; refusing to overwrite")
         from glyphforge.fileio import atomic_write
         from glyphforge.preview import preview_html, preview_recipe
 

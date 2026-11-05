@@ -152,6 +152,21 @@ def test_export_no_format(rdir, tmp_path, fake, monkeypatch):
     assert res.exit_code == 2 and "no export format" in res.stderr
 
 
+def test_export_recipe_formats_default(store, rdir, tmp_path):
+    res = _run("export", store, tmp_path / "o", "--recipe", _recipe(rdir, "p.yaml", formats=("parquet",)))
+    assert res.exit_code == 0, res.stderr
+    assert (tmp_path / "o" / "parquet").exists() and not (tmp_path / "o" / "glyphfix").exists()
+    res = _run("export", store, tmp_path / "n", "--recipe", _recipe(rdir, "n.yaml", formats=()))
+    assert res.exit_code == 2 and "no export format" in res.stderr and not (tmp_path / "n").exists()
+
+
+def test_preview_refuses_existing_out(store, tmp_path):
+    out = tmp_path / "p.html"
+    out.write_bytes(b"keep")
+    res = _run("preview", store, out)
+    assert res.exit_code == 2 and str(out) in res.stderr and out.read_bytes() == b"keep"
+
+
 def test_export_recipe_section_and_manifest(store, rdir, tmp_path):
     other = _recipe(rdir, "e.yaml", formats=("glyphfix",))
     shutil.copy(rdir / "blocklist.jsonl", rdir / "x.jsonl")
