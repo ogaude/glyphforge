@@ -14,7 +14,7 @@ import numpy as np
 import PIL
 
 from glyphforge import __version__
-from glyphforge.canon import canon_versions
+from glyphforge.canon import canon_versions, canonical
 from glyphforge.errors import BUILTIN_MODULES, DEFAULT_REGISTRY, ErrorClass, Registry, builtin_registry
 from glyphforge.export import control_glyphs_used, export_glyphfix
 from glyphforge.pixels import PIXEL_POLICY_VERSION
@@ -90,7 +90,8 @@ def _row(d: Draft, c: Control | None, role: str, label: str, res, v, cache: Path
         "height": int(padded.shape[0]), "image": f"images/{sha[:2]}/{sha}.png", "image_digest": IMAGE_DIGEST, "image_sha256": sha,
         "licence": f.licence, "n_sites": 1 if c else d.n_sites, "n_tokens": c.n_tokens if c else d.hard_negative_n_tokens if role == "hard_negative" else d.n_tokens, "pad_px": pad_px,
         "paper_id": f.paper_id, "paper_version": f.paper_version, "recipe_sha256": rh, "rules": canon_versions(), "seed": c.seed if c else d.seed,
-        "site_level": c.site_level if c else d.site_level, "size_pt": look.style.size, "style_preamble_sha256": d.style.preamble_sha256,
+        "site_level": c.site_level if c else d.site_level, "size_pt": look.style.size, "source_canon": canonical(f.latex),
+        "style_preamble_sha256": d.style.preamble_sha256,
         "width": int(padded.shape[1]), "wrapper": d.wrapper,
     }  # fmt: skip
 

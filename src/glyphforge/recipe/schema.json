@@ -1,5 +1,25 @@
 {
   "$defs": {
+    "BlocklistPin": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "BlocklistPin",
+      "type": "object"
+    },
     "BoundsSpec": {
       "additionalProperties": false,
       "properties": {
@@ -75,19 +95,125 @@
       "title": "CompositionSpec",
       "type": "object"
     },
+    "DegradeSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "blur": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "clean_share": {
+          "default": 0.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Clean Share",
+          "type": "number"
+        },
+        "contrast": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "jpeg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "noise": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rotate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "DegradeSpec",
+      "type": "object"
+    },
     "ExportSpec": {
       "additionalProperties": false,
       "properties": {
-        "formats": {
-          "default": [
-            "glyphfix"
+        "blocklist": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlocklistPin"
+            },
+            {
+              "type": "null"
+            }
           ],
+          "default": null
+        },
+        "degrade": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DegradeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "formats": {
+          "default": [],
           "items": {
-            "const": "glyphfix",
+            "enum": [
+              "glyphfix",
+              "parquet"
+            ],
             "type": "string"
           },
           "title": "Formats",
           "type": "array"
+        },
+        "row_group_rows": {
+          "default": 1000,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Row Group Rows",
+          "type": "integer"
+        },
+        "shard_mb": {
+          "default": 500,
+          "maximum": 4096,
+          "minimum": 1,
+          "title": "Shard Mb",
+          "type": "integer"
         }
       },
       "title": "ExportSpec",
@@ -148,6 +274,44 @@
         "licence"
       ],
       "title": "Formula",
+      "type": "object"
+    },
+    "OpSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "p": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "title": "OpSpec",
       "type": "object"
     },
     "QCSpec": {
@@ -518,9 +682,11 @@
     "export": {
       "$ref": "#/$defs/ExportSpec",
       "default": {
-        "formats": [
-          "glyphfix"
-        ]
+        "blocklist": null,
+        "degrade": null,
+        "formats": [],
+        "row_group_rows": 1000,
+        "shard_mb": 500
       }
     },
     "plugins": {
@@ -545,8 +711,8 @@
       }
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
     },

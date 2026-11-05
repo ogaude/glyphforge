@@ -15,6 +15,8 @@ dependencies = [
 
 [project.optional-dependencies]
 cli = ["typer>=0.27,<1"]
+parquet = ["pyarrow>=26,<27"]
+hf = ["pyarrow>=26,<27", "datasets==5.1.0"]
 
 [project.scripts]
 glyphforge = "glyphforge.cli:main"
@@ -25,6 +27,9 @@ dev = [
     "hypothesis>=6.170",
     "ruff>=0.17",
     "mypy>=2.4",
+    "typer>=0.27,<1",
+    "pyarrow>=26,<27",
+    "datasets==5.1.0",
 ]
 
 [build-system]
