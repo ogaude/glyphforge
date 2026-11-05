@@ -20,8 +20,8 @@ def largest_remainder(total: int, shares: Mapping[str, float]) -> dict[str, int]
     return out
 
 
-def spread(i: int, rate: float) -> int:
-    """Count for slot ``i`` so that prefix sums equal ``floor(n * rate)`` exactly."""
+def spread(i: int, rate: float | Fraction) -> int:
+    """Count for slot ``i`` so that prefix sums equal ``floor(n * rate)`` exactly; pass a Fraction for a derived rate (no float error)."""
     q = Fraction(str(rate))
     return floor((i + 1) * q) - floor(i * q)
 

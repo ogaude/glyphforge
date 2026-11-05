@@ -105,6 +105,7 @@ def test_extra_control_counts():
     assert {s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=1.0)[0]} == {0}
     assert {s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=3)[0]} == {2}
     assert {s.n_extra for s in _slots([UPS], 10, hard_negative_ratio=1.5)[0]} <= {0, 1}
+    assert sum(s.n_extra for s in _slots([UPS], 20, hard_negative_ratio=1.15)[0]) == 3  # floor(20 * 0.15), not float 0.1499...
 
 
 def test_grammar_slots_get_synthetic_paper_ids_and_pair_ids():

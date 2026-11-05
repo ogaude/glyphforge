@@ -6,6 +6,7 @@ import hashlib
 import random
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -119,7 +120,8 @@ def plan_slots(
     for n in order:  # the mix is spread over each class's own slot index so classes never alias with sources
         src.append(0 if len(source_kinds) == 1 or spread(seen[n], first_share) else 1)
         seen[n] += 1
-    extra = [spread(i, composition.hard_negative_ratio - 1) for i in range(len(order))]
+    rate = Fraction(str(composition.hard_negative_ratio)) - 1  # 1.15 - 1 in floats is 0.1499..., which undershoots the prefix sums
+    extra = [spread(i, rate) for i in range(len(order))]
     grammar = [i for i, s in enumerate(src) if source_kinds[s] == "grammar"]
     ids = dict(zip(grammar, synthetic_paper_ids([2 + extra[i] for i in grammar], f"synth:{recipe_hash[:8]}"), strict=True))
     slots = [

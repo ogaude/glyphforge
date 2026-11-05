@@ -40,6 +40,7 @@ def test_spread_prefix_sums(n, rate):
 
 def test_spread_rate():
     assert sum(spread(i, 0.3) for i in range(10)) == 3
+    assert sum(spread(i, Fraction(3, 20)) for i in range(20)) == 3
 
 
 def test_class_slots():
