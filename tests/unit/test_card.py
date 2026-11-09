@@ -43,7 +43,8 @@ def test_card_content_and_determinism():
     assert card.startswith("---\npretty_name: GlyphForge synthetic formula images\nlicense:\n- cc-by-4.0\n- cc0-1.0\n")
     assert "config_name: default" in card and "path: data/train-*.parquet" in card
     for needle in ("sha256:dig", "cd" * 32, "Any exact canon match fails the export.", "blocklist.jsonl", "ab" * 32, "0.1.0", '"normalize": 3',
-                   "| CC-BY-4.0 | 2 |", "\n3 rendered", NO_ENDORSE):  # fmt: skip
+                   "| CC-BY-4.0 | 2 |", "\n3 rendered", NO_ENDORSE, "[GlyphForge](https://github.com/ogaude/glyphforge) 0.1.0",
+                   "https://github.com/ogaude/glyphforge/blob/v0.1.0/docs/reproducibility.md"):  # fmt: skip
         assert needle in card
     assert "\nnone\n" in card
     assert not re.search(r"\d{4}-\d{2}-\d{2}", card)

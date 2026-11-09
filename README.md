@@ -4,6 +4,8 @@ GlyphForge generates rendered LaTeX formula images whose labels are provably cor
 
 GlyphForge is an independent project. It is not affiliated with, endorsed by, or sponsored by LightOn.
 
+Reference dataset: [ogaude/glyphforge-equations](https://huggingface.co/datasets/ogaude/glyphforge-equations) on Hugging Face.
+
 ## Install
 
 ```

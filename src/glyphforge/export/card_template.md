@@ -25,6 +25,9 @@ configs:
 
 $no_endorse
 
+Generated with [GlyphForge](https://github.com/ogaude/glyphforge) $generator_version, the open-source generator and recipe tool that
+built every row.
+
 ## Summary
 
 $n_rows rendered LaTeX formula images, each with a label that compiles and canonicalises to the stored text. Images are raw ink crops
@@ -95,7 +98,8 @@ $degrade
 ## Reproducing
 
 The recipe pins the snapshot and blocklist sha256, and `glyphforge validate` refuses a mismatch. `glyphforge run <recipe> <out>`
-rebuilds the dataset. For a hub dataset, `source/` holds the snapshot and blocklist.
+rebuilds the dataset. For a hub dataset, `source/` holds the snapshot and blocklist. Step-by-step instructions:
+https://github.com/ogaude/glyphforge/blob/v$generator_version/docs/reproducibility.md
 
 ## Provenance
 
