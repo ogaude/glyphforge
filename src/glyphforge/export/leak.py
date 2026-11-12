@@ -29,6 +29,12 @@ SHARD_SETS = (
 ID_FILES = ("data/splits/benchmark_ids.txt", "data/splits/quarantine_ids.txt")
 ASSIGNMENTS = ("data/corpus_v11/split/assignment.tsv", "data/corpus_v11/split_refresh1/assignment.tsv")
 HELD_OUT = {"fresh_benchmark", "page_set"}
+# excluded papers sharing an author with a held-out paper or with v1 / base train (glyphfix-math corpus/v11.py reasons)
+AUTHOR_OVERLAP = {"author_overlap_eval", "author_overlap_v1_train", "author_overlap_base_train"}
+
+
+def _blocked(row: dict) -> bool:
+    return row["v11_split"] in HELD_OUT or (row["v11_split"] == "excluded" and row["reason"] in AUTHOR_OVERLAP)
 
 
 def base_id(paper_id: str) -> str:
@@ -94,7 +100,7 @@ def build_blocklist(glyphfix_root: Path, out: Path) -> dict:
         if not (path := root / rel).is_file():
             continue  # split_refresh1 only exists in newer checkouts
         with read(path).open(encoding="utf-8", newline="") as fh:
-            ids = {base_id(r["id"]) for r in csv.DictReader(fh, delimiter="\t") if r["v11_split"] in HELD_OUT}
+            ids = {base_id(r["id"]) for r in csv.DictReader(fh, delimiter="\t") if _blocked(r)}
         paper_files[rel] = len(ids)
         papers |= ids
     data = jsonl_bytes([{"k": "formula", "v": v} for v in sorted(formulas)] + [{"k": "paper", "v": v} for v in sorted(papers)])

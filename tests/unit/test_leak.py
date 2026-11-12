@@ -217,3 +217,21 @@ def test_build_context_loads_pin_and_rejects_mismatch(tmp_path):
         build_context(_recipe(BlocklistPin(path="bl.jsonl", sha256="1" * 64)), [UPS], tmp_path, recipe_hash="0" * 64)
     plain, _, _ = build_context(Recipe(), [UPS], tmp_path, recipe_hash="0" * 64)
     assert plain.blocklist is None
+
+
+def test_build_blocklist_blocks_author_overlap_exclusions(root, tmp_path):
+    rows = [
+        ("o1v1", "excluded", "author_overlap_eval"),
+        ("o2v2", "excluded", "author_overlap_v1_train"),
+        ("o3v1", "excluded", "author_overlap_base_train"),
+        ("n1v1", "excluded", "license"),
+        ("n2v1", "train_extra", "author_overlap_eval"),
+    ]
+    path = root / "data/corpus_v11/split/assignment.tsv"
+    path.write_text("id\tbucket\tv11_split\treason\tprimary_category\n" + "".join(f"{i}\tb\t{s}\t{r}\tmath\n" for i, s, r in rows), "utf-8")
+    out = tmp_path / "bl.jsonl"
+    meta = build_blocklist(root, out)
+    papers = {r["v"] for r in _lines(out) if r["k"] == "paper"}
+    assert {"o1", "o2", "o3"} <= papers
+    assert not {"n1", "n2"} & papers
+    assert meta["paper_files"]["data/corpus_v11/split/assignment.tsv"] == 3
